@@ -4,201 +4,247 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StockMuni — Municipalidad de Caá Catí</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root {
-    --bg: #0f1117;
-    --surface: #181c27;
-    --surface2: #1e2335;
-    --border: #2a2f45;
-    --accent: #4f8aff;
-    --accent2: #38d9a9;
-    --accent3: #ff8c42;
-    --warn: #ff4d6d;
-    --text: #e8eaf2;
-    --muted: #7a80a0;
-    --farmacia: #4f8aff;
-    --galpon: #38d9a9;
+:root {
+  --bg:#0f1117; --surface:#181c27; --surface2:#1e2335; --border:#2a2f45;
+  --accent:#4f8aff; --accent2:#38d9a9; --accent3:#ff8c42; --warn:#ff4d6d;
+  --text:#e8eaf2; --muted:#7a80a0; --farmacia:#4f8aff; --galpon:#38d9a9;
+  --sidebar-w: 220px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* ── SCREENS ── */
+.screen{display:none;min-height:100vh;}
+.screen.active{display:flex;}
+
+/* ── LOGIN ── */
+#login{align-items:center;justify-content:center;flex-direction:column;position:relative;}
+.login-bg{position:fixed;inset:0;z-index:0;
+  background:radial-gradient(ellipse 60% 50% at 20% 30%,rgba(79,138,255,.12) 0%,transparent 70%),
+             radial-gradient(ellipse 50% 60% at 80% 70%,rgba(56,217,169,.09) 0%,transparent 70%),var(--bg);}
+.login-box{position:relative;z-index:1;background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:48px 44px;width:min(380px,92vw);box-shadow:0 32px 80px rgba(0,0,0,.5);}
+.login-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.5px;margin-bottom:6px;}
+.login-logo span{color:var(--accent);}
+.login-sub{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:36px;}
+.login-field{margin-bottom:16px;}
+.login-field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;}
+.login-field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+.login-field input:focus{border-color:var(--accent);}
+.btn-primary{width:100%;padding:13px;background:var(--accent);border:none;border-radius:10px;color:#fff;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer;margin-top:8px;transition:all .2s;}
+.btn-primary:hover{background:#6b9fff;transform:translateY(-1px);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.login-error{color:var(--warn);font-size:12px;margin-top:10px;text-align:center;min-height:18px;}
+
+/* ── APP SHELL ── */
+#app{flex-direction:column;}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;height:56px;
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.topbar-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;}
+.topbar-logo span{color:var(--accent);}
+.topbar-sector{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
+.topbar-sector.farmacia{background:rgba(79,138,255,.15);color:var(--farmacia);border:1px solid rgba(79,138,255,.3);}
+.topbar-sector.galpon  {background:rgba(56,217,169,.15);color:var(--galpon);  border:1px solid rgba(56,217,169,.3);}
+.topbar-sector.admin   {background:rgba(255,140,66,.15); color:var(--accent3); border:1px solid rgba(255,140,66,.3);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.topbar-user{font-size:12px;color:var(--muted);}
+.topbar-user strong{color:var(--text);}
+.btn-logout{padding:5px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;
+  color:var(--muted);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;white-space:nowrap;}
+.btn-logout:hover{border-color:var(--warn);color:var(--warn);}
+/* hamburger */
+.btn-menu{display:none;background:transparent;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px 6px;line-height:1;}
+
+/* ── BODY ── */
+.app-body{display:flex;flex:1;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);
+  padding:20px 14px;display:flex;flex-direction:column;gap:4px;min-height:calc(100vh - 56px);flex-shrink:0;}
+.sidebar-section{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);padding:8px 10px 4px;margin-top:6px;}
+.nav-item{padding:9px 10px;border-radius:9px;font-size:13px;color:var(--muted);cursor:pointer;
+  transition:all .15s;display:flex;align-items:center;gap:9px;border:none;background:transparent;
+  font-family:'DM Sans',sans-serif;width:100%;text-align:left;}
+.nav-item:hover{background:var(--surface2);color:var(--text);}
+.nav-item.active{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.nav-item .icon{font-size:15px;width:18px;text-align:center;}
+
+/* ── MAIN ── */
+.main{flex:1;padding:24px 20px;overflow-y:auto;min-width:0;}
+.page{display:none;}
+.page.active{display:block;animation:fadeIn .2s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.page-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;margin-bottom:4px;}
+.page-desc{color:var(--muted);font-size:13px;margin-bottom:24px;}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0;}
+.stat-card.blue::before {background:var(--accent);}
+.stat-card.green::before{background:var(--accent2);}
+.stat-card.orange::before{background:var(--accent3);}
+.stat-card.red::before  {background:var(--warn);}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;}
+.stat-value{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;line-height:1;margin-bottom:3px;}
+.stat-sub{font-size:11px;color:var(--muted);}
+
+/* ── TABLE ── */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px;}
+.table-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.table-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;}
+/* scrollable table wrapper on mobile */
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;min-width:400px;}
+th{padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);background:var(--bg);white-space:nowrap;}
+td{padding:12px 16px;font-size:13px;border-top:1px solid var(--border);vertical-align:middle;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.empty-row td{text-align:center;color:var(--muted);padding:28px;}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+.badge.entrada    {background:rgba(56,217,169,.15);color:var(--accent2);}
+.badge.salida     {background:rgba(255,140,66,.15); color:var(--accent3);}
+.badge.ok         {background:rgba(56,217,169,.12);color:var(--accent2);}
+.badge.bajo       {background:rgba(255,140,66,.15); color:var(--accent3);}
+.badge.critico    {background:rgba(255,77,109,.15); color:var(--warn);}
+.badge.sin_stock  {background:rgba(255,77,109,.25); color:var(--warn);}
+.badge.farmacia-tag{background:rgba(79,138,255,.12);color:var(--farmacia);}
+.badge.galpon-tag  {background:rgba(56,217,169,.12);color:var(--galpon);}
+
+/* ── STOCK BAR ── */
+.stock-bar-wrap{display:flex;align-items:center;gap:8px;}
+.stock-bar{height:5px;background:var(--border);border-radius:3px;width:60px;overflow:hidden;flex-shrink:0;}
+.stock-bar-fill{height:100%;border-radius:3px;}
+.stock-bar-fill.high{background:var(--accent2);}
+.stock-bar-fill.mid {background:var(--accent3);}
+.stock-bar-fill.low {background:var(--warn);}
+
+/* ── BUTTONS ── */
+.btn-sm{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;
+  font-family:'DM Sans',sans-serif;transition:all .2s;border:none;white-space:nowrap;}
+.btn-sm.primary{background:var(--accent);color:#fff;}
+.btn-sm.primary:hover{background:#6b9fff;}
+.btn-sm.ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+.btn-sm.ghost:hover{border-color:var(--accent);color:var(--accent);}
+.btn-sm:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── FORM ── */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-field{margin-bottom:14px;}
+.form-field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;}
+.form-field input,.form-field select,.form-field textarea{
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:9px;
+  padding:10px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--accent);}
+.form-field select option{background:var(--surface);}
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:20px;}
+
+/* ── TIPO TABS ── */
+.tipo-tabs{display:flex;gap:8px;margin-bottom:18px;}
+.tipo-tab{flex:1;padding:11px;border-radius:10px;border:2px solid var(--border);background:transparent;
+  color:var(--muted);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer;text-align:center;transition:all .2s;}
+.tipo-tab.entrada.active{border-color:var(--accent2);color:var(--accent2);background:rgba(56,217,169,.08);}
+.tipo-tab.salida.active {border-color:var(--accent3);color:var(--accent3);background:rgba(255,140,66,.08);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);
+  backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;
+  width:min(480px,100%);box-shadow:0 40px 80px rgba(0,0,0,.6);animation:slideUp .25s ease;
+  max-height:90vh;overflow-y:auto;}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:4px;}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:22px;}
+.modal-btns{display:flex;gap:10px;margin-top:6px;justify-content:flex-end;}
+.modal-btns .btn-sm{padding:10px 20px;font-size:13px;}
+
+/* ── ALERTAS ── */
+.alert-list{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+.alert-item{background:rgba(255,77,109,.07);border:1px solid rgba(255,77,109,.2);
+  border-radius:10px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;font-size:13px;}
+.alert-item.bajo{background:rgba(255,140,66,.06);border-color:rgba(255,140,66,.2);}
+.alert-icon{font-size:16px;margin-top:1px;}
+.alert-text strong{display:block;margin-bottom:2px;}
+.alert-text span{color:var(--muted);font-size:12px;}
+
+/* ── SECTOR CARDS (admin) ── */
+.sector-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.sector-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;}
+.sector-card-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.dot.farmacia{background:var(--farmacia);}
+.dot.galpon  {background:var(--galpon);}
+.mini-stat-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.mini-stat-label{font-size:12px;color:var(--muted);}
+.mini-stat-val{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;}
+
+/* ── LOADING ── */
+.loading{text-align:center;padding:36px;color:var(--muted);font-size:13px;}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  padding:11px 20px;font-size:13px;z-index:500;transition:transform .3s,opacity .3s;opacity:0;white-space:nowrap;}
+
+/* ── SIDEBAR OVERLAY (mobile) ── */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:90;}
+.sidebar-overlay.open{display:block;}
+
+/* ══════════════════════════════
+   RESPONSIVE — MOBILE
+══════════════════════════════ */
+@media(max-width:700px){
+  :root{ --sidebar-w: 240px; }
+
+  .btn-menu{ display:block; }
+  .topbar-user{ display:none; }
+
+  /* sidebar off-canvas */
+  .sidebar{
+    position:fixed; left:0; top:56px; bottom:0;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    z-index:91; min-height:unset;
+    overflow-y:auto;
   }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
+  .sidebar.open{ transform:translateX(0); }
 
-  .screen { display:none; min-height:100vh; }
-  .screen.active { display:flex; }
+  .main{ padding:16px 12px; }
 
-  /* LOGIN */
-  #login { align-items:center; justify-content:center; flex-direction:column; position:relative; }
-  .login-bg { position:fixed; inset:0; z-index:0;
-    background: radial-gradient(ellipse 60% 50% at 20% 30%, rgba(79,138,255,0.12) 0%, transparent 70%),
-                radial-gradient(ellipse 50% 60% at 80% 70%, rgba(56,217,169,0.09) 0%, transparent 70%), var(--bg); }
-  .login-box { position:relative; z-index:1; background:var(--surface); border:1px solid var(--border);
-    border-radius:20px; padding:48px 44px; width:380px; box-shadow:0 32px 80px rgba(0,0,0,0.5); }
-  .login-logo { font-family:'Syne',sans-serif; font-weight:800; font-size:26px; letter-spacing:-0.5px; margin-bottom:6px; }
-  .login-logo span { color:var(--accent); }
-  .login-sub { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:36px; }
-  .login-field { margin-bottom:16px; }
-  .login-field label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:8px; }
-  .login-field input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px;
-    padding:12px 14px; color:var(--text); font-size:14px; font-family:'DM Sans',sans-serif; outline:none; transition:border-color 0.2s; }
-  .login-field input:focus { border-color:var(--accent); }
-  .btn-primary { width:100%; padding:13px; background:var(--accent); border:none; border-radius:10px; color:white;
-    font-family:'Syne',sans-serif; font-weight:700; font-size:14px; cursor:pointer; margin-top:8px; transition:all 0.2s; }
-  .btn-primary:hover { background:#6b9fff; transform:translateY(-1px); }
-  .btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
-  .login-error { color:var(--warn); font-size:12px; margin-top:10px; text-align:center; min-height:18px; }
+  .stats-grid{ grid-template-columns:1fr 1fr; gap:10px; }
+  .stat-value{ font-size:22px; }
+  .stat-sub{ display:none; }
 
-  /* APP */
-  #app { flex-direction:column; }
-  .topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:0 28px; height:60px;
-    display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
-  .topbar-left { display:flex; align-items:center; gap:20px; }
-  .topbar-logo { font-family:'Syne',sans-serif; font-weight:800; font-size:18px; }
-  .topbar-logo span { color:var(--accent); }
-  .topbar-sector { padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; }
-  .topbar-sector.farmacia { background:rgba(79,138,255,0.15); color:var(--farmacia); border:1px solid rgba(79,138,255,0.3); }
-  .topbar-sector.galpon   { background:rgba(56,217,169,0.15); color:var(--galpon);   border:1px solid rgba(56,217,169,0.3); }
-  .topbar-sector.admin    { background:rgba(255,140,66,0.15);  color:var(--accent3);  border:1px solid rgba(255,140,66,0.3); }
-  .topbar-right { display:flex; align-items:center; gap:16px; }
-  .topbar-user { font-size:13px; color:var(--muted); }
-  .topbar-user strong { color:var(--text); }
-  .btn-logout { padding:6px 14px; background:transparent; border:1px solid var(--border); border-radius:8px;
-    color:var(--muted); font-size:12px; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
-  .btn-logout:hover { border-color:var(--warn); color:var(--warn); }
-  .app-body { display:flex; flex:1; }
+  .sector-split{ grid-template-columns:1fr; }
 
-  /* SIDEBAR */
-  .sidebar { width:220px; background:var(--surface); border-right:1px solid var(--border);
-    padding:24px 16px; display:flex; flex-direction:column; gap:4px; min-height:calc(100vh - 60px); }
-  .sidebar-section { font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); padding:8px 12px 4px; margin-top:8px; }
-  .nav-item { padding:9px 12px; border-radius:9px; font-size:13.5px; color:var(--muted); cursor:pointer;
-    transition:all 0.15s; display:flex; align-items:center; gap:10px; border:none; background:transparent;
-    font-family:'DM Sans',sans-serif; width:100%; text-align:left; }
-  .nav-item:hover { background:var(--surface2); color:var(--text); }
-  .nav-item.active { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
-  .nav-item .icon { font-size:16px; width:20px; text-align:center; }
+  .form-row{ grid-template-columns:1fr; }
 
-  /* MAIN */
-  .main { flex:1; padding:32px 36px; overflow-y:auto; }
-  .page { display:none; }
-  .page.active { display:block; animation:fadeIn 0.2s ease; }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-  .page-title { font-family:'Syne',sans-serif; font-size:26px; font-weight:700; margin-bottom:6px; }
-  .page-desc { color:var(--muted); font-size:14px; margin-bottom:32px; }
+  .table-header{ flex-direction:column; align-items:flex-start; }
 
-  /* STATS */
-  .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; margin-bottom:32px; }
-  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px 22px; position:relative; overflow:hidden; }
-  .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:14px 14px 0 0; }
-  .stat-card.blue::before  { background:var(--accent); }
-  .stat-card.green::before { background:var(--accent2); }
-  .stat-card.orange::before{ background:var(--accent3); }
-  .stat-card.red::before   { background:var(--warn); }
-  .stat-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:10px; }
-  .stat-value { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; line-height:1; margin-bottom:4px; }
-  .stat-sub { font-size:12px; color:var(--muted); }
+  .page-title{ font-size:18px; }
+}
 
-  /* TABLE */
-  .table-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:24px; }
-  .table-header { padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
-  .table-title { font-family:'Syne',sans-serif; font-weight:700; font-size:15px; }
-  table { width:100%; border-collapse:collapse; }
-  th { padding:11px 22px; text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); background:var(--bg); }
-  td { padding:13px 22px; font-size:13.5px; border-top:1px solid var(--border); vertical-align:middle; }
-  tr:hover td { background:rgba(255,255,255,0.02); }
-  .empty-row td { text-align:center; color:var(--muted); padding:32px; }
+@media(max-width:380px){
+  .stats-grid{ grid-template-columns:1fr 1fr; }
+  .login-box{ padding:32px 24px; }
+}
 
-  /* BADGES */
-  .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
-  .badge.entrada      { background:rgba(56,217,169,0.15); color:var(--accent2); }
-  .badge.salida       { background:rgba(255,140,66,0.15);  color:var(--accent3); }
-  .badge.ok           { background:rgba(56,217,169,0.12);  color:var(--accent2); }
-  .badge.bajo         { background:rgba(255,140,66,0.15);  color:var(--accent3); }
-  .badge.critico      { background:rgba(255,77,109,0.15);  color:var(--warn); }
-  .badge.sin_stock    { background:rgba(255,77,109,0.25);  color:var(--warn); }
-  .badge.farmacia-tag { background:rgba(79,138,255,0.12);  color:var(--farmacia); }
-  .badge.galpon-tag   { background:rgba(56,217,169,0.12);  color:var(--galpon); }
-
-  /* STOCK BAR */
-  .stock-bar-wrap { display:flex; align-items:center; gap:10px; }
-  .stock-bar { height:6px; background:var(--border); border-radius:3px; width:80px; overflow:hidden; }
-  .stock-bar-fill { height:100%; border-radius:3px; }
-  .stock-bar-fill.high { background:var(--accent2); }
-  .stock-bar-fill.mid  { background:var(--accent3); }
-  .stock-bar-fill.low  { background:var(--warn); }
-
-  /* BUTTONS */
-  .btn-sm { padding:7px 16px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer;
-    font-family:'DM Sans',sans-serif; transition:all 0.2s; border:none; }
-  .btn-sm.primary { background:var(--accent); color:white; }
-  .btn-sm.primary:hover { background:#6b9fff; }
-  .btn-sm.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
-  .btn-sm.ghost:hover { border-color:var(--accent); color:var(--accent); }
-  .btn-sm:disabled { opacity:0.4; cursor:not-allowed; }
-
-  /* MODAL */
-  .modal-overlay { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.6);
-    backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; }
-  .modal-overlay.open { display:flex; }
-  .modal { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:36px;
-    width:500px; box-shadow:0 40px 80px rgba(0,0,0,0.6); animation:slideUp 0.25s ease; max-height:90vh; overflow-y:auto; }
-  @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
-  .modal-title { font-family:'Syne',sans-serif; font-weight:700; font-size:20px; margin-bottom:6px; }
-  .modal-sub { font-size:13px; color:var(--muted); margin-bottom:28px; }
-  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  .form-field { margin-bottom:16px; }
-  .form-field label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:7px; }
-  .form-field input,.form-field select,.form-field textarea {
-    width:100%; background:var(--bg); border:1px solid var(--border); border-radius:9px;
-    padding:10px 13px; color:var(--text); font-size:13.5px; font-family:'DM Sans',sans-serif; outline:none; transition:border-color 0.2s; }
-  .form-field input:focus,.form-field select:focus,.form-field textarea:focus { border-color:var(--accent); }
-  .form-field select option { background:var(--surface); }
-  .modal-btns { display:flex; gap:10px; margin-top:8px; justify-content:flex-end; }
-  .modal-btns .btn-sm { padding:10px 22px; font-size:13px; }
-
-  /* TIPO TABS */
-  .tipo-tabs { display:flex; gap:8px; margin-bottom:20px; }
-  .tipo-tab { flex:1; padding:12px; border-radius:10px; border:2px solid var(--border); background:transparent;
-    color:var(--muted); font-family:'Syne',sans-serif; font-weight:700; font-size:13px; cursor:pointer; text-align:center; transition:all 0.2s; }
-  .tipo-tab.entrada.active { border-color:var(--accent2); color:var(--accent2); background:rgba(56,217,169,0.08); }
-  .tipo-tab.salida.active  { border-color:var(--accent3); color:var(--accent3); background:rgba(255,140,66,0.08); }
-
-  /* ALERTAS */
-  .alert-list { display:flex; flex-direction:column; gap:10px; margin-bottom:28px; }
-  .alert-item { background:rgba(255,77,109,0.07); border:1px solid rgba(255,77,109,0.2);
-    border-radius:10px; padding:13px 16px; display:flex; align-items:center; gap:12px; font-size:13px; }
-  .alert-item.bajo { background:rgba(255,140,66,0.06); border-color:rgba(255,140,66,0.2); }
-  .alert-icon { font-size:18px; }
-  .alert-text { flex:1; }
-  .alert-text strong { display:block; margin-bottom:2px; }
-  .alert-text span { color:var(--muted); font-size:12px; }
-
-  /* SECTOR CARDS */
-  .sector-split { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:28px; }
-  .sector-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px; }
-  .sector-card-title { font-family:'Syne',sans-serif; font-weight:700; font-size:15px; margin-bottom:16px; display:flex; align-items:center; gap:10px; }
-  .dot { width:10px; height:10px; border-radius:50%; }
-  .dot.farmacia { background:var(--farmacia); }
-  .dot.galpon   { background:var(--galpon); }
-  .mini-stat-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-  .mini-stat-label { font-size:12px; color:var(--muted); }
-  .mini-stat-val { font-family:'Syne',sans-serif; font-weight:700; font-size:20px; }
-
-  /* LOADING */
-  .loading { text-align:center; padding:40px; color:var(--muted); font-size:14px; }
-  .spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--border);
-    border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; margin-right:10px; vertical-align:middle; }
-  @keyframes spin { to{transform:rotate(360deg)} }
-
-  /* TOAST */
-  #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
-    background:var(--surface2); border:1px solid var(--border); border-radius:10px;
-    padding:12px 22px; font-size:13px; z-index:500;
-    transition:transform 0.3s ease,opacity 0.3s ease; opacity:0; white-space:nowrap; }
-
-  ::-webkit-scrollbar { width:6px; }
-  ::-webkit-scrollbar-track { background:transparent; }
-  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 </style>
 </head>
 <body>
@@ -211,12 +257,12 @@
     <div class="login-sub">Municipalidad de Caá Catí</div>
     <div class="login-field">
       <label>Email</label>
-      <input type="email" id="login-email" placeholder="usuario@stockmuni.com">
+      <input type="email" id="login-email" placeholder="usuario@stockmuni.com" autocomplete="username">
     </div>
     <div class="login-field">
       <label>Contraseña</label>
-      <input type="password" id="login-pass" placeholder="••••••••"
-        onkeydown="if(event.key==='Enter') doLogin()">
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="btn-primary" id="btn-login" onclick="doLogin()">Ingresar</button>
     <div class="login-error" id="login-error"></div>
@@ -225,16 +271,20 @@
 
 <!-- APP -->
 <div id="app" class="screen">
+
   <div class="topbar">
     <div class="topbar-left">
+      <button class="btn-menu" id="btn-menu" onclick="toggleSidebar()">☰</button>
       <div class="topbar-logo">Stock<span>Muni</span></div>
-      <div id="topbar-sector" class="topbar-sector farmacia">Cargando...</div>
+      <div id="topbar-sector" class="topbar-sector farmacia"></div>
     </div>
     <div class="topbar-right">
       <div class="topbar-user">Bienvenido/a, <strong id="topbar-name">—</strong></div>
       <button class="btn-logout" onclick="doLogout()">Salir</button>
     </div>
   </div>
+
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
   <div class="app-body">
     <!-- Sidebar encargado -->
@@ -262,38 +312,40 @@
       <!-- INVENTARIO -->
       <div class="page active" id="page-inventario">
         <div class="page-title">Inventario</div>
-        <div class="page-desc">Stock actual de tu sector en tiempo real.</div>
+        <div class="page-desc">Stock actual de tu sector.</div>
         <div class="stats-grid">
-          <div class="stat-card blue"><div class="stat-label">Total ítems</div><div class="stat-value" id="inv-total">—</div><div class="stat-sub">productos registrados</div></div>
-          <div class="stat-card green"><div class="stat-label">Stock OK</div><div class="stat-value" id="inv-ok">—</div><div class="stat-sub">en niveles normales</div></div>
-          <div class="stat-card orange"><div class="stat-label">Stock bajo</div><div class="stat-value" id="inv-bajo">—</div><div class="stat-sub">requieren reposición</div></div>
-          <div class="stat-card red"><div class="stat-label">Críticos</div><div class="stat-value" id="inv-crit">—</div><div class="stat-sub">sin stock o mínimo</div></div>
+          <div class="stat-card blue"><div class="stat-label">Total ítems</div><div class="stat-value" id="inv-total">—</div><div class="stat-sub">productos</div></div>
+          <div class="stat-card green"><div class="stat-label">Stock OK</div><div class="stat-value" id="inv-ok">—</div><div class="stat-sub">normales</div></div>
+          <div class="stat-card orange"><div class="stat-label">Bajo</div><div class="stat-value" id="inv-bajo">—</div><div class="stat-sub">reposición</div></div>
+          <div class="stat-card red"><div class="stat-label">Críticos</div><div class="stat-value" id="inv-crit">—</div><div class="stat-sub">urgente</div></div>
         </div>
         <div class="table-card">
           <div class="table-header">
             <div class="table-title">Productos</div>
             <button class="btn-sm primary" onclick="openModalProducto()">+ Nuevo producto</button>
           </div>
-          <table>
-            <thead><tr><th>Producto</th><th>Categoría</th><th>Stock</th><th>Unidad</th><th>Estado</th></tr></thead>
-            <tbody id="inv-tbody"><tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Producto</th><th>Categoría</th><th>Stock</th><th>Unidad</th><th>Estado</th></tr></thead>
+              <tbody id="inv-tbody"><tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- MOVIMIENTO -->
       <div class="page" id="page-movimiento">
         <div class="page-title">Registrar movimiento</div>
-        <div class="page-desc">Cargá una entrada o salida de stock.</div>
+        <div class="page-desc">Entrada o salida de stock.</div>
         <div class="tipo-tabs">
-          <button class="tipo-tab entrada active" id="tab-entrada" onclick="setTipo('entrada')">⬇️ Entrada de stock</button>
-          <button class="tipo-tab salida" id="tab-salida" onclick="setTipo('salida')">⬆️ Salida / Entrega</button>
+          <button class="tipo-tab entrada active" id="tab-entrada" onclick="setTipo('entrada')">⬇️ Entrada</button>
+          <button class="tipo-tab salida" id="tab-salida" onclick="setTipo('salida')">⬆️ Salida</button>
         </div>
-        <div class="table-card" style="padding:28px">
+        <div class="form-card">
           <div class="form-row">
             <div class="form-field">
               <label>Producto</label>
-              <select id="mov-producto"><option value="">Seleccioná un producto...</option></select>
+              <select id="mov-producto"><option value="">Seleccioná...</option></select>
             </div>
             <div class="form-field">
               <label>Cantidad</label>
@@ -322,9 +374,9 @@
             <label>Observaciones (opcional)</label>
             <textarea id="mov-obs" rows="2" placeholder="Cualquier detalle adicional..."></textarea>
           </div>
-          <div style="display:flex;gap:10px;margin-top:4px">
-            <button class="btn-sm primary" id="btn-guardar-mov" style="padding:11px 28px;font-size:13px" onclick="guardarMovimiento()">Confirmar registro</button>
-            <button class="btn-sm ghost" style="padding:11px 20px;font-size:13px" onclick="limpiarFormMovimiento()">Limpiar</button>
+          <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;">
+            <button class="btn-sm primary" id="btn-guardar-mov" style="padding:11px 24px;font-size:13px" onclick="guardarMovimiento()">Confirmar registro</button>
+            <button class="btn-sm ghost" style="padding:11px 18px;font-size:13px" onclick="limpiarFormMovimiento()">Limpiar</button>
           </div>
         </div>
       </div>
@@ -332,13 +384,15 @@
       <!-- HISTORIAL -->
       <div class="page" id="page-historial">
         <div class="page-title">Historial de movimientos</div>
-        <div class="page-desc">Todos los registros de tu sector.</div>
+        <div class="page-desc">Registros de tu sector.</div>
         <div class="table-card">
           <div class="table-header"><div class="table-title">Movimientos</div></div>
-          <table>
-            <thead><tr><th>Fecha / Hora</th><th>Tipo</th><th>Producto</th><th>Cantidad</th><th>Detalle</th></tr></thead>
-            <tbody id="hist-tbody"><tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Fecha / Hora</th><th>Tipo</th><th>Producto</th><th>Cant.</th><th>Detalle</th></tr></thead>
+              <tbody id="hist-tbody"><tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -352,40 +406,44 @@
       <!-- ADMIN DASHBOARD -->
       <div class="page" id="page-admin-dashboard">
         <div class="page-title">Panel general</div>
-        <div class="page-desc">Resumen de stock en tiempo real — ambos sectores.</div>
+        <div class="page-desc">Resumen en tiempo real — ambos sectores.</div>
         <div class="sector-split">
           <div class="sector-card">
             <div class="sector-card-title"><div class="dot farmacia"></div> Farmacia Municipal</div>
             <div class="mini-stat-row"><span class="mini-stat-label">Total productos</span><span class="mini-stat-val" id="adm-farm-total">—</span></div>
             <div class="mini-stat-row"><span class="mini-stat-label">Alertas activas</span><span class="mini-stat-val" id="adm-farm-alertas" style="color:var(--warn)">—</span></div>
-            <button class="btn-sm ghost" onclick="navTo('admin-farmacia',null)" style="width:100%;margin-top:12px">Ver detalle →</button>
+            <button class="btn-sm ghost" onclick="navTo('admin-farmacia',null)" style="width:100%;margin-top:10px">Ver detalle →</button>
           </div>
           <div class="sector-card">
             <div class="sector-card-title"><div class="dot galpon"></div> Galpón Municipal</div>
             <div class="mini-stat-row"><span class="mini-stat-label">Total ítems</span><span class="mini-stat-val" id="adm-galp-total">—</span></div>
             <div class="mini-stat-row"><span class="mini-stat-label">Alertas activas</span><span class="mini-stat-val" id="adm-galp-alertas" style="color:var(--accent3)">—</span></div>
-            <button class="btn-sm ghost" onclick="navTo('admin-galpon',null)" style="width:100%;margin-top:12px">Ver detalle →</button>
+            <button class="btn-sm ghost" onclick="navTo('admin-galpon',null)" style="width:100%;margin-top:10px">Ver detalle →</button>
           </div>
         </div>
         <div class="table-card">
-          <div class="table-header"><div class="table-title">Últimos movimientos — ambos sectores</div></div>
-          <table>
-            <thead><tr><th>Fecha</th><th>Sector</th><th>Tipo</th><th>Producto</th><th>Cantidad</th><th>Registró</th></tr></thead>
-            <tbody id="adm-mov-tbody"><tr><td colspan="6" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
-          </table>
+          <div class="table-header"><div class="table-title">Últimos movimientos</div></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Fecha</th><th>Sector</th><th>Tipo</th><th>Producto</th><th>Cant.</th><th>Registró</th></tr></thead>
+              <tbody id="adm-mov-tbody"><tr><td colspan="6" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- ADMIN FARMACIA -->
       <div class="page" id="page-admin-farmacia">
         <div class="page-title">Farmacia Municipal</div>
-        <div class="page-desc">Inventario completo y trazabilidad de medicamentos.</div>
+        <div class="page-desc">Inventario y trazabilidad de medicamentos.</div>
         <div class="table-card">
           <div class="table-header"><div class="table-title">Stock actual</div></div>
-          <table>
-            <thead><tr><th>Producto</th><th>Categoría</th><th>Stock</th><th>Unidad</th><th>Estado</th></tr></thead>
-            <tbody id="adm-farm-tbody"><tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Producto</th><th>Categoría</th><th>Stock</th><th>Unidad</th><th>Estado</th></tr></thead>
+              <tbody id="adm-farm-tbody"><tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -395,10 +453,12 @@
         <div class="page-desc">Herramientas, insumos, combustible y repuestos.</div>
         <div class="table-card">
           <div class="table-header"><div class="table-title">Stock actual</div></div>
-          <table>
-            <thead><tr><th>Ítem</th><th>Categoría</th><th>Stock</th><th>Unidad</th><th>Estado</th></tr></thead>
-            <tbody id="adm-galp-tbody"><tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Ítem</th><th>Categoría</th><th>Stock</th><th>Unidad</th><th>Estado</th></tr></thead>
+              <tbody id="adm-galp-tbody"><tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -408,16 +468,18 @@
         <div class="page-desc">Todos los movimientos de ambos sectores.</div>
         <div class="table-card">
           <div class="table-header"><div class="table-title">Movimientos</div></div>
-          <table>
-            <thead><tr><th>Fecha</th><th>Sector</th><th>Tipo</th><th>Producto</th><th>Cantidad</th><th>Detalle</th><th>Registró</th></tr></thead>
-            <tbody id="adm-hist-tbody"><tr><td colspan="7" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Fecha</th><th>Sector</th><th>Tipo</th><th>Producto</th><th>Cant.</th><th>Detalle</th><th>Registró</th></tr></thead>
+              <tbody id="adm-hist-tbody"><tr><td colspan="7" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-    </div>
-  </div>
-</div>
+    </div><!-- /main -->
+  </div><!-- /app-body -->
+</div><!-- /app -->
 
 <!-- MODAL NUEVO PRODUCTO -->
 <div class="modal-overlay" id="modal-producto" onclick="if(event.target===this)this.classList.remove('open')">
@@ -462,9 +524,23 @@ const SUPABASE_URL = 'https://xnytmygxqvgsnksohhfz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhueXRteWd4cXZnc25rc29oaGZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1MDc5NDEsImV4cCI6MjA5MTA4Mzk0MX0.jrXBVbsxu2_mvETcPYuss0EJwTQKHds1Um8F7bcxzlg';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentUser   = null;
-let currentPerfil = null;
+let currentUser    = null;
+let currentPerfil  = null;
 let tipoMovimiento = 'entrada';
+let appReady       = false;
+
+// ── SIDEBAR MOBILE ──
+function toggleSidebar() {
+  const sid = document.querySelector('.sidebar[style*="flex"]') ||
+              document.querySelector('.sidebar:not([style*="none"])');
+  if (!sid) return;
+  sid.classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open', sid.classList.contains('open'));
+}
+function closeSidebar() {
+  document.querySelectorAll('.sidebar').forEach(s => s.classList.remove('open'));
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
 
 // ── AUTH ──
 async function doLogin() {
@@ -472,17 +548,21 @@ async function doLogin() {
   const pass  = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
   const btn   = document.getElementById('btn-login');
+  if (!email || !pass) { errEl.textContent = 'Completá email y contraseña.'; return; }
   errEl.textContent = '';
   btn.disabled = true; btn.textContent = 'Ingresando...';
 
+  // Cerrar sesión previa explícitamente antes de hacer login nuevo
+  await db.auth.signOut();
+  currentUser = null; currentPerfil = null; appReady = false;
+
   const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
-  if (error) {
-    errEl.textContent = 'Email o contraseña incorrectos.';
-    btn.disabled = false; btn.textContent = 'Ingresar'; return;
-  }
+  btn.disabled = false; btn.textContent = 'Ingresar';
+
+  if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; return; }
+
   currentUser = data.user;
   await cargarPerfil();
-  btn.disabled = false; btn.textContent = 'Ingresar';
 }
 
 async function cargarPerfil() {
@@ -496,44 +576,69 @@ async function cargarPerfil() {
 
 async function doLogout() {
   await db.auth.signOut();
-  currentUser = null; currentPerfil = null;
+  // Limpiar TODO el estado
+  currentUser   = null;
+  currentPerfil = null;
+  appReady      = false;
+  tipoMovimiento = 'entrada';
+
+  // Ocultar ambos sidebars y resetear estilos
+  document.getElementById('sidebar-encargado').style.display = 'none';
+  document.getElementById('sidebar-admin').style.display     = 'none';
+  document.querySelectorAll('.sidebar').forEach(s => { s.classList.remove('open'); s.style.display = 'none'; });
+  document.getElementById('sidebar-overlay').classList.remove('open');
+
+  // Limpiar campos login
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pass').value  = '';
+  document.getElementById('login-error').textContent = '';
+
   document.getElementById('app').classList.remove('active');
   document.getElementById('login').classList.add('active');
-  document.getElementById('login-email').value = '';
-  document.getElementById('login-pass').value = '';
 }
 
+// Restaurar sesión al recargar página (solo si no hay sesión activa ya)
 db.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'SIGNED_IN' && session && !currentPerfil) {
+  if (event === 'SIGNED_IN' && session && !appReady) {
     currentUser = session.user;
     await cargarPerfil();
+  }
+  if (event === 'SIGNED_OUT') {
+    appReady = false;
   }
 });
 
 // ── INICIAR APP ──
 function iniciarApp() {
+  appReady = true;
+  // Resetear sidebars primero
+  document.getElementById('sidebar-encargado').style.display = 'none';
+  document.getElementById('sidebar-admin').style.display     = 'none';
+
   document.getElementById('login').classList.remove('active');
   document.getElementById('app').classList.add('active');
+
   const p = currentPerfil;
   document.getElementById('topbar-name').textContent = p.nombre;
 
   if (p.rol === 'intendente') {
-    document.getElementById('topbar-sector').textContent = 'Vista Intendente';
-    document.getElementById('topbar-sector').className = 'topbar-sector admin';
+    document.getElementById('topbar-sector').textContent  = 'Intendente';
+    document.getElementById('topbar-sector').className    = 'topbar-sector admin';
     document.getElementById('sidebar-admin').style.display = 'flex';
-    navTo('admin-dashboard', null);
+    navTo('admin-dashboard', document.querySelector('#sidebar-admin .nav-item'));
   } else {
     const slug = p.sectores.slug;
     document.getElementById('topbar-sector').textContent = p.sectores.nombre;
-    document.getElementById('topbar-sector').className = 'topbar-sector ' + slug;
+    document.getElementById('topbar-sector').className   = 'topbar-sector ' + slug;
     document.getElementById('sidebar-encargado').style.display = 'flex';
     if (slug === 'galpon') document.getElementById('np-venc-wrap').style.display = 'none';
-    navTo('inventario', null);
+    navTo('inventario', document.querySelector('#sidebar-encargado .nav-item'));
   }
 }
 
 // ── NAVEGACIÓN ──
 function navTo(pageId, btn) {
+  closeSidebar();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + pageId).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -544,8 +649,8 @@ function navTo(pageId, btn) {
     'historial':       cargarHistorial,
     'alertas':         cargarAlertas,
     'admin-dashboard': cargarAdminDashboard,
-    'admin-farmacia':  () => cargarInventarioSector(1, 'adm-farm-tbody'),
-    'admin-galpon':    () => cargarInventarioSector(2, 'adm-galp-tbody'),
+    'admin-farmacia':  () => cargarInventarioSector(1,'adm-farm-tbody'),
+    'admin-galpon':    () => cargarInventarioSector(2,'adm-galp-tbody'),
     'admin-historial': cargarHistorialGlobal,
   };
   if (loaders[pageId]) loaders[pageId]();
@@ -554,9 +659,9 @@ function navTo(pageId, btn) {
 // ── HELPERS ──
 function calcEstado(p) {
   const s = parseFloat(p.stock_actual), m = parseFloat(p.stock_minimo);
-  if (s <= 0) return 'sin_stock';
+  if (s <= 0)       return 'sin_stock';
   if (s <= m * 0.5) return 'critico';
-  if (s <= m) return 'bajo';
+  if (s <= m)       return 'bajo';
   return 'ok';
 }
 function estadoBadge(est) {
@@ -567,13 +672,17 @@ function stockBarHTML(p) {
   const s = parseFloat(p.stock_actual), m = parseFloat(p.stock_minimo)||1;
   const pct = Math.min(100, Math.round((s/(m*3))*100));
   const cls = pct>50?'high':pct>20?'mid':'low';
-  return `<div class="stock-bar-wrap"><div class="stock-bar"><div class="stock-bar-fill ${cls}" style="width:${pct}%"></div></div>${s}</div>`;
+  return `<div class="stock-bar-wrap">
+    <div class="stock-bar"><div class="stock-bar-fill ${cls}" style="width:${pct}%"></div></div>
+    ${s}
+  </div>`;
 }
+// FIX: hora en 24hs, usando la zona horaria de Argentina
 function formatFecha(ts) {
   if (!ts) return '—';
   const d = new Date(ts);
-  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'}) + ' ' +
-         d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',timeZone:'America/Argentina/Buenos_Aires'}) + ' ' +
+         d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Argentina/Buenos_Aires'});
 }
 
 // ── INVENTARIO ──
@@ -581,16 +690,13 @@ async function cargarInventario() {
   const tbody = document.getElementById('inv-tbody');
   tbody.innerHTML = `<tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
   const { data } = await db.from('productos').select('*')
-    .eq('sector_id', currentPerfil.sector_id).eq('activo', true).order('nombre');
-  if (!data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Error al cargar.</td></tr>`; return; }
-  const ok   = data.filter(p=>calcEstado(p)==='ok').length;
-  const bajo = data.filter(p=>calcEstado(p)==='bajo').length;
-  const crit = data.filter(p=>['critico','sin_stock'].includes(calcEstado(p))).length;
+    .eq('sector_id', currentPerfil.sector_id).eq('activo',true).order('nombre');
+  if (!data) { tbody.innerHTML=`<tr class="empty-row"><td colspan="5">Error al cargar.</td></tr>`; return; }
   document.getElementById('inv-total').textContent = data.length;
-  document.getElementById('inv-ok').textContent    = ok;
-  document.getElementById('inv-bajo').textContent  = bajo;
-  document.getElementById('inv-crit').textContent  = crit;
-  if (!data.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="5">No hay productos cargados todavía.</td></tr>`; return; }
+  document.getElementById('inv-ok').textContent    = data.filter(p=>calcEstado(p)==='ok').length;
+  document.getElementById('inv-bajo').textContent  = data.filter(p=>calcEstado(p)==='bajo').length;
+  document.getElementById('inv-crit').textContent  = data.filter(p=>['critico','sin_stock'].includes(calcEstado(p))).length;
+  if (!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="5">No hay productos cargados todavía.</td></tr>`; return; }
   tbody.innerHTML = data.map(p=>`<tr>
     <td><strong>${p.nombre}</strong></td>
     <td>${p.categoria||'—'}</td>
@@ -602,12 +708,12 @@ async function cargarInventario() {
 
 async function cargarInventarioSector(sectorId, tbodyId) {
   const tbody = document.getElementById(tbodyId);
-  tbody.innerHTML = `<tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
-  const { data } = await db.from('productos').select('*').eq('sector_id', sectorId).eq('activo',true).order('nombre');
-  if (!data||!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="5">Sin datos.</td></tr>`; return; }
+  tbody.innerHTML=`<tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
+  const { data } = await db.from('productos').select('*').eq('sector_id',sectorId).eq('activo',true).order('nombre');
+  if (!data||!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="5">Sin datos aún.</td></tr>`; return; }
   tbody.innerHTML = data.map(p=>`<tr>
     <td><strong>${p.nombre}</strong></td><td>${p.categoria||'—'}</td>
-    <td>${p.stock_actual} ${p.unidad}</td><td>${p.unidad}</td>
+    <td>${p.stock_actual}</td><td>${p.unidad}</td>
     <td>${estadoBadge(calcEstado(p))}</td>
   </tr>`).join('');
 }
@@ -617,11 +723,10 @@ async function cargarProductosSelect() {
   const sel = document.getElementById('mov-producto');
   sel.innerHTML = '<option value="">Seleccioná un producto...</option>';
   const { data } = await db.from('productos').select('id,nombre,stock_actual,unidad')
-    .eq('sector_id', currentPerfil.sector_id).eq('activo',true).order('nombre');
+    .eq('sector_id',currentPerfil.sector_id).eq('activo',true).order('nombre');
   if (data) data.forEach(p => {
     sel.innerHTML += `<option value="${p.id}">${p.nombre} (stock: ${p.stock_actual} ${p.unidad})</option>`;
   });
-  // Mostrar campos correctos según tipo y sector
   setTipo(tipoMovimiento);
 }
 
@@ -630,9 +735,9 @@ function setTipo(tipo) {
   document.getElementById('tab-entrada').classList.toggle('active', tipo==='entrada');
   document.getElementById('tab-salida').classList.toggle('active',  tipo==='salida');
   const slug = currentPerfil?.sectores?.slug;
-  document.getElementById('campos-entrada').style.display              = tipo==='entrada'?'block':'none';
-  document.getElementById('campos-salida-farmacia').style.display      = (tipo==='salida'&&slug==='farmacia')?'block':'none';
-  document.getElementById('campos-salida-galpon').style.display        = (tipo==='salida'&&slug==='galpon')?'block':'none';
+  document.getElementById('campos-entrada').style.display             = tipo==='entrada'?'block':'none';
+  document.getElementById('campos-salida-farmacia').style.display     = (tipo==='salida'&&slug==='farmacia')?'block':'none';
+  document.getElementById('campos-salida-galpon').style.display       = (tipo==='salida'&&slug==='galpon')?'block':'none';
 }
 
 function limpiarFormMovimiento() {
@@ -655,29 +760,21 @@ async function guardarMovimiento() {
   }
   const btn = document.getElementById('btn-guardar-mov');
   btn.disabled=true; btn.textContent='Guardando...';
-
   const { data:prod } = await db.from('productos').select('stock_actual').eq('id',productoId).single();
-  const stockAntes   = parseFloat(prod.stock_actual);
+  const stockAntes = parseFloat(prod.stock_actual);
   if (tipoMovimiento==='salida'&&cantidad>stockAntes) {
     showToast('❌ No hay suficiente stock'); btn.disabled=false; btn.textContent='Confirmar registro'; return;
   }
   const stockDespues = tipoMovimiento==='entrada' ? stockAntes+cantidad : stockAntes-cantidad;
-
   const { data:mov, error } = await db.from('movimientos').insert({
-    producto_id:  productoId,
-    sector_id:    currentPerfil.sector_id,
-    tipo:         tipoMovimiento,
-    cantidad,
-    stock_antes:  stockAntes,
-    stock_despues:stockDespues,
-    usuario_id:   currentUser.id,
-    observaciones:document.getElementById('mov-obs').value.trim()||null,
-    proveedor:    tipoMovimiento==='entrada'?(document.getElementById('mov-proveedor').value.trim()||null):null,
-    nro_remito:   tipoMovimiento==='entrada'?(document.getElementById('mov-remito').value.trim()||null):null,
+    producto_id:  productoId, sector_id: currentPerfil.sector_id,
+    tipo: tipoMovimiento, cantidad, stock_antes:stockAntes, stock_despues:stockDespues,
+    usuario_id: currentUser.id,
+    observaciones: document.getElementById('mov-obs').value.trim()||null,
+    proveedor:  tipoMovimiento==='entrada'?(document.getElementById('mov-proveedor').value.trim()||null):null,
+    nro_remito: tipoMovimiento==='entrada'?(document.getElementById('mov-remito').value.trim()||null):null,
   }).select().single();
-
   if (error) { showToast('❌ Error: '+error.message); btn.disabled=false; btn.textContent='Confirmar registro'; return; }
-
   if (tipoMovimiento==='salida'&&slug==='farmacia')
     await db.from('entregas_farmacia').insert({ movimiento_id:mov.id,
       receptor_nombre:document.getElementById('mov-receptor').value.trim(),
@@ -686,8 +783,7 @@ async function guardarMovimiento() {
     await db.from('salidas_galpon').insert({ movimiento_id:mov.id,
       retirado_por: document.getElementById('mov-retirado').value.trim(),
       destino_tarea:document.getElementById('mov-tarea').value.trim() });
-
-  showToast('✅ Movimiento registrado correctamente');
+  showToast('✅ Movimiento registrado');
   limpiarFormMovimiento();
   btn.disabled=false; btn.textContent='Confirmar registro';
 }
@@ -698,8 +794,7 @@ async function cargarHistorial() {
   tbody.innerHTML=`<tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
   const { data } = await db.from('movimientos')
     .select('*, productos(nombre,unidad), entregas_farmacia(receptor_nombre), salidas_galpon(retirado_por,destino_tarea)')
-    .eq('sector_id', currentPerfil.sector_id)
-    .order('registrado_en',{ascending:false}).limit(50);
+    .eq('sector_id',currentPerfil.sector_id).order('registrado_en',{ascending:false}).limit(50);
   if (!data||!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="5">Sin movimientos todavía.</td></tr>`; return; }
   tbody.innerHTML = data.map(m=>{
     let det='—';
@@ -707,10 +802,10 @@ async function cargarHistorial() {
     if (m.salidas_galpon)    det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
     if (m.proveedor)         det=m.proveedor+(m.nro_remito?` — ${m.nro_remito}`:'');
     return `<tr>
-      <td>${formatFecha(m.registrado_en)}</td>
+      <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
       <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
       <td>${m.productos?.nombre||'—'}</td>
-      <td>${m.cantidad} ${m.productos?.unidad||''}</td>
+      <td>${m.cantidad}</td>
       <td style="color:var(--muted);font-size:12px">${det}</td>
     </tr>`;
   }).join('');
@@ -721,7 +816,7 @@ async function cargarAlertas() {
   const cont = document.getElementById('alertas-container');
   cont.innerHTML=`<div class="loading"><span class="spinner"></span>Cargando...</div>`;
   const { data } = await db.from('productos').select('*')
-    .eq('sector_id', currentPerfil.sector_id).eq('activo',true);
+    .eq('sector_id',currentPerfil.sector_id).eq('activo',true);
   const alertas = (data||[]).filter(p=>['critico','bajo','sin_stock'].includes(calcEstado(p)));
   if (!alertas.length) { cont.innerHTML=`<div class="loading">✅ Todo el stock está en niveles normales.</div>`; return; }
   cont.innerHTML = alertas.map(p=>{
@@ -730,7 +825,7 @@ async function cargarAlertas() {
       <div class="alert-icon">${isCrit?'🔴':'🟠'}</div>
       <div class="alert-text">
         <strong>${p.nombre} — ${isCrit?'stock crítico':'stock bajo'}</strong>
-        <span>Stock actual: ${p.stock_actual} ${p.unidad}. Mínimo recomendado: ${p.stock_minimo}.</span>
+        <span>Actual: ${p.stock_actual} ${p.unidad} · Mínimo: ${p.stock_minimo}</span>
       </div>
     </div>`;
   }).join('');
@@ -738,14 +833,14 @@ async function cargarAlertas() {
 
 // ── ADMIN DASHBOARD ──
 async function cargarAdminDashboard() {
-  const { data:farm } = await db.from('productos').select('*').eq('sector_id',1).eq('activo',true);
-  const { data:galp } = await db.from('productos').select('*').eq('sector_id',2).eq('activo',true);
-  const farmAl = (farm||[]).filter(p=>['critico','bajo','sin_stock'].includes(calcEstado(p)));
-  const galpAl = (galp||[]).filter(p=>['critico','bajo','sin_stock'].includes(calcEstado(p)));
+  const [{ data:farm },{ data:galp }] = await Promise.all([
+    db.from('productos').select('*').eq('sector_id',1).eq('activo',true),
+    db.from('productos').select('*').eq('sector_id',2).eq('activo',true),
+  ]);
   document.getElementById('adm-farm-total').textContent   = (farm||[]).length;
-  document.getElementById('adm-farm-alertas').textContent = farmAl.length;
+  document.getElementById('adm-farm-alertas').textContent = (farm||[]).filter(p=>['critico','bajo','sin_stock'].includes(calcEstado(p))).length;
   document.getElementById('adm-galp-total').textContent   = (galp||[]).length;
-  document.getElementById('adm-galp-alertas').textContent = galpAl.length;
+  document.getElementById('adm-galp-alertas').textContent = (galp||[]).filter(p=>['critico','bajo','sin_stock'].includes(calcEstado(p))).length;
 
   const tbody = document.getElementById('adm-mov-tbody');
   const { data:movs } = await db.from('movimientos')
@@ -753,11 +848,11 @@ async function cargarAdminDashboard() {
     .order('registrado_en',{ascending:false}).limit(15);
   if (!movs||!movs.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="6">Sin movimientos.</td></tr>`; return; }
   tbody.innerHTML = movs.map(m=>`<tr>
-    <td>${formatFecha(m.registrado_en)}</td>
-    <td><span class="badge ${m.sectores?.slug==='farmacia'?'farmacia-tag':'galpon-tag'}">${m.sectores?.nombre||'—'}</span></td>
+    <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+    <td><span class="badge ${m.sectores?.slug==='farmacia'?'farmacia-tag':'galpon-tag'}">${m.sectores?.slug==='farmacia'?'Farmacia':'Galpón'}</span></td>
     <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
     <td>${m.productos?.nombre||'—'}</td>
-    <td>${m.cantidad} ${m.productos?.unidad||''}</td>
+    <td>${m.cantidad}</td>
     <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td>
   </tr>`).join('');
 }
@@ -776,11 +871,11 @@ async function cargarHistorialGlobal() {
     if (m.salidas_galpon)    det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
     if (m.proveedor)         det=m.proveedor;
     return `<tr>
-      <td>${formatFecha(m.registrado_en)}</td>
-      <td><span class="badge ${m.sectores?.slug==='farmacia'?'farmacia-tag':'galpon-tag'}">${m.sectores?.nombre||'—'}</span></td>
+      <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+      <td><span class="badge ${m.sectores?.slug==='farmacia'?'farmacia-tag':'galpon-tag'}">${m.sectores?.slug==='farmacia'?'Farmacia':'Galpón'}</span></td>
       <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
       <td>${m.productos?.nombre||'—'}</td>
-      <td>${m.cantidad} ${m.productos?.unidad||''}</td>
+      <td>${m.cantidad}</td>
       <td style="color:var(--muted);font-size:12px">${det}</td>
       <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td>
     </tr>`;
@@ -808,6 +903,10 @@ async function guardarProducto() {
   btn.disabled=false; btn.textContent='Guardar';
   if (error) { showToast('❌ Error: '+error.message); return; }
   document.getElementById('modal-producto').classList.remove('open');
+  // Limpiar campos del modal
+  ['np-nombre','np-categoria','np-stock','np-minimo','np-vencimiento'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
   showToast('✅ Producto agregado');
   cargarInventario();
 }
@@ -815,7 +914,7 @@ async function guardarProducto() {
 // ── TOAST ──
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  t.textContent=msg;
   t.style.transform='translateX(-50%) translateY(0)'; t.style.opacity='1';
   setTimeout(()=>{ t.style.transform='translateX(-50%) translateY(80px)'; t.style.opacity='0'; },3000);
 }
