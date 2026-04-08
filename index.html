@@ -268,7 +268,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
     <div class="login-sub">Municipalidad de Caá Catí</div>
     <div class="login-field">
       <label>Email</label>
-      <input type="email" id="login-email" placeholder="usuario@stockmuni.com" autocomplete="username">
+      <input type="email" id="login-email" placeholder="usuario@muni.com" autocomplete="username">
     </div>
     <div class="login-field">
       <label>Contraseña</label>
@@ -578,22 +578,35 @@ async function doLogin() {
   errEl.textContent = '';
   btn.disabled = true; btn.textContent = 'Ingresando...';
 
-  // Limpiar TODA sesión previa del storage
-  Object.keys(localStorage).forEach(k => {
-    if (k.startsWith('sb-')) localStorage.removeItem(k);
-  });
+  // Limpiar storage y estado
+  try {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('sb-')) localStorage.removeItem(k);
+    });
+  } catch(e) {}
   currentUser = null; currentPerfil = null; appReady = false;
 
-  // Pequeña pausa para que Supabase procese el signOut
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 400));
 
-  const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
-  btn.disabled = false; btn.textContent = 'Ingresar';
+  // Timeout de seguridad: si tarda más de 8s se desbloquea el botón
+  const timeout = setTimeout(() => {
+    btn.disabled = false;
+    btn.textContent = 'Ingresar';
+    errEl.textContent = 'Tiempo de espera agotado. Intentá de nuevo.';
+  }, 8000);
 
-  if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; return; }
-
-  currentUser = data.user;
-  await cargarPerfil();
+  try {
+    const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
+    clearTimeout(timeout);
+    btn.disabled = false; btn.textContent = 'Ingresar';
+    if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; return; }
+    currentUser = data.user;
+    await cargarPerfil();
+  } catch(e) {
+    clearTimeout(timeout);
+    btn.disabled = false; btn.textContent = 'Ingresar';
+    errEl.textContent = 'Error de conexión. Revisá tu internet.';
+  }
 }
 
 async function cargarPerfil() {
