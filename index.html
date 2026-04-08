@@ -378,7 +378,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
           <div id="campos-entrada">
             <div class="form-row">
               <div class="form-field"><label>Proveedor / Origen</label><input type="text" id="mov-proveedor" placeholder="Ej: Droguería Central"></div>
-              <div class="form-field"><label>Nro. de remito/factura</label><input type="text" id="mov-remito" placeholder="R-00123"></div>
+              <div class="form-field"><label>Nro. de remito</label><input type="text" id="mov-remito" placeholder="R-00123"></div>
             </div>
           </div>
           <div class="form-field">
@@ -785,7 +785,7 @@ function setTipo(tipo) {
 }
 
 function limpiarFormMovimiento() {
-  ['mov-producto','mov-cantidad','mov-receptor','mov-dni','mov-retirado','mov-tarea','mov-proveedor','mov-remito/factura','mov-obs']
+  ['mov-producto','mov-cantidad','mov-receptor','mov-dni','mov-retirado','mov-tarea','mov-proveedor','mov-remito','mov-obs']
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
 }
 
@@ -847,7 +847,7 @@ async function cargarHistorial() {
     let det='—';
     if (m.entregas_farmacia) det=`→ ${m.entregas_farmacia.receptor_nombre}`;
     if (m.salidas_galpon)    det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
-    if (m.proveedor)         det=m.proveedor+(m.nro_remito/factura?` — ${m.nro_remito/factura}`:'');
+    if (m.proveedor)         det=m.proveedor+(m.nro_remito?` — ${m.nro_remito}`:'');
     return `<tr class="clickable-row" onclick="abrirDetalle(window._movData[${m.id}])">
       <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
       <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
@@ -1035,8 +1035,8 @@ function abrirDetalle(m) {
     </div>`;
   }
 
-  // Entrada: proveedor y remito/factura
-  if (esEntrada && (m.proveedor || m.nro_remito/factura)) {
+  // Entrada: proveedor y remito
+  if (esEntrada && (m.proveedor || m.nro_remito)) {
     filas += `<hr class="detalle-divider">`;
     if (m.proveedor) filas += `
     <div class="detalle-item">
@@ -1045,8 +1045,8 @@ function abrirDetalle(m) {
     </div>`;
     if (m.nro_remito) filas += `
     <div class="detalle-item">
-      <div class="detalle-label">Nro. de remito/factura</div>
-      <div class="detalle-val">${m.nro_remito/factura}</div>
+      <div class="detalle-label">Nro. de remito</div>
+      <div class="detalle-val">${m.nro_remito}</div>
     </div>`;
   }
 
