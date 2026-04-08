@@ -378,7 +378,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
           <div id="campos-entrada">
             <div class="form-row">
               <div class="form-field"><label>Proveedor / Origen</label><input type="text" id="mov-proveedor" placeholder="Ej: Droguería Central"></div>
-              <div class="form-field"><label>Nro. de remito/factura</label><input type="text" id="mov-remito/factura" placeholder="R-00123"></div>
+              <div class="form-field"><label>Nro. de remito/factura</label><input type="text" id="mov-remito" placeholder="R-00123"></div>
             </div>
           </div>
           <div class="form-field">
@@ -816,7 +816,7 @@ async function guardarMovimiento() {
     usuario_id: currentUser.id,
     observaciones: document.getElementById('mov-obs').value.trim()||null,
     proveedor:  tipoMovimiento==='entrada'?(document.getElementById('mov-proveedor').value.trim()||null):null,
-    nro_remito/factura: tipoMovimiento==='entrada'?(document.getElementById('mov-remito/factura').value.trim()||null):null,
+    nro_remito: tipoMovimiento==='entrada'?(document.getElementById('mov-remito').value.trim()||null):null,
   }).select().single();
   if (error) { showToast('❌ Error: '+error.message); btn.disabled=false; btn.textContent='Confirmar registro'; return; }
   if (tipoMovimiento==='salida'&&slug==='farmacia')
