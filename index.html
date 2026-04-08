@@ -242,6 +242,17 @@ tr:hover td{background:rgba(255,255,255,.02);}
   .login-box{ padding:32px 24px; }
 }
 
+/* ── MODAL DETALLE ── */
+.detalle-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 20px; margin-bottom:4px; }
+.detalle-item { padding:10px 14px; background:var(--bg); border-radius:10px; border:1px solid var(--border); }
+.detalle-item.full { grid-column: 1 / -1; }
+.detalle-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:4px; }
+.detalle-val { font-size:14px; font-weight:500; }
+.detalle-divider { grid-column:1/-1; border:none; border-top:1px solid var(--border); margin:4px 0; }
+/* filas clickeables */
+.clickable-row { cursor:pointer; }
+.clickable-row:hover td { background:rgba(79,138,255,0.06) !important; }
+
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
@@ -480,6 +491,21 @@ tr:hover td{background:rgba(255,255,255,.02);}
     </div><!-- /main -->
   </div><!-- /app-body -->
 </div><!-- /app -->
+
+<!-- MODAL DETALLE MOVIMIENTO -->
+<div class="modal-overlay" id="modal-detalle" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="modal-title" id="det-titulo">Detalle del movimiento</div>
+      <span id="det-badge"></span>
+    </div>
+    <div class="modal-sub" id="det-fecha"></div>
+    <div class="detalle-grid" id="det-grid"></div>
+    <div class="modal-btns" style="margin-top:18px">
+      <button class="btn-sm ghost" onclick="document.getElementById('modal-detalle').classList.remove('open')">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL NUEVO PRODUCTO -->
 <div class="modal-overlay" id="modal-producto" onclick="if(event.target===this)this.classList.remove('open')">
@@ -798,15 +824,18 @@ async function cargarHistorial() {
   const tbody = document.getElementById('hist-tbody');
   tbody.innerHTML=`<tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
   const { data } = await db.from('movimientos')
-    .select('*, productos(nombre,unidad), entregas_farmacia(receptor_nombre), salidas_galpon(retirado_por,destino_tarea)')
+    .select('*, productos(nombre,unidad), usuarios(nombre), entregas_farmacia(receptor_nombre,receptor_dni), salidas_galpon(retirado_por,destino_tarea)')
     .eq('sector_id',currentPerfil.sector_id).order('registrado_en',{ascending:false}).limit(50);
   if (!data||!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="5">Sin movimientos todavía.</td></tr>`; return; }
+  // Guardar datos para el modal
+  window._movData = {};
+  data.forEach(m => window._movData[m.id] = m);
   tbody.innerHTML = data.map(m=>{
     let det='—';
     if (m.entregas_farmacia) det=`→ ${m.entregas_farmacia.receptor_nombre}`;
     if (m.salidas_galpon)    det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
     if (m.proveedor)         det=m.proveedor+(m.nro_remito?` — ${m.nro_remito}`:'');
-    return `<tr>
+    return `<tr class="clickable-row" onclick="abrirDetalle(window._movData[${m.id}])">
       <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
       <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
       <td>${m.productos?.nombre||'—'}</td>
@@ -849,10 +878,12 @@ async function cargarAdminDashboard() {
 
   const tbody = document.getElementById('adm-mov-tbody');
   const { data:movs } = await db.from('movimientos')
-    .select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre)')
+    .select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), entregas_farmacia(receptor_nombre,receptor_dni), salidas_galpon(retirado_por,destino_tarea)')
     .order('registrado_en',{ascending:false}).limit(15);
   if (!movs||!movs.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="6">Sin movimientos.</td></tr>`; return; }
-  tbody.innerHTML = movs.map(m=>`<tr>
+  window._movDataAdm = {};
+  movs.forEach(m => window._movDataAdm[m.id] = m);
+  tbody.innerHTML = movs.map(m=>`<tr class="clickable-row" onclick="abrirDetalle(window._movDataAdm[${m.id}])">
     <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
     <td><span class="badge ${m.sectores?.slug==='farmacia'?'farmacia-tag':'galpon-tag'}">${m.sectores?.slug==='farmacia'?'Farmacia':'Galpón'}</span></td>
     <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
@@ -867,15 +898,17 @@ async function cargarHistorialGlobal() {
   const tbody = document.getElementById('adm-hist-tbody');
   tbody.innerHTML=`<tr><td colspan="7" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
   const { data } = await db.from('movimientos')
-    .select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), entregas_farmacia(receptor_nombre), salidas_galpon(retirado_por,destino_tarea)')
+    .select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), entregas_farmacia(receptor_nombre,receptor_dni), salidas_galpon(retirado_por,destino_tarea)')
     .order('registrado_en',{ascending:false}).limit(100);
   if (!data||!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="7">Sin movimientos.</td></tr>`; return; }
+  window._movDataGlobal = {};
+  data.forEach(m => window._movDataGlobal[m.id] = m);
   tbody.innerHTML = data.map(m=>{
     let det='—';
     if (m.entregas_farmacia) det=`→ ${m.entregas_farmacia.receptor_nombre}`;
     if (m.salidas_galpon)    det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
     if (m.proveedor)         det=m.proveedor;
-    return `<tr>
+    return `<tr class="clickable-row" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
       <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
       <td><span class="badge ${m.sectores?.slug==='farmacia'?'farmacia-tag':'galpon-tag'}">${m.sectores?.slug==='farmacia'?'Farmacia':'Galpón'}</span></td>
       <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
@@ -914,6 +947,107 @@ async function guardarProducto() {
   });
   showToast('✅ Producto agregado');
   cargarInventario();
+}
+
+// ── DETALLE MOVIMIENTO ──
+function abrirDetalle(m) {
+  const esFarmacia = m.sectores?.slug === 'farmacia' || currentPerfil?.sectores?.slug === 'farmacia';
+  const esGalpon   = m.sectores?.slug === 'galpon'   || currentPerfil?.sectores?.slug === 'galpon';
+  const esSalida   = m.tipo === 'salida';
+  const esEntrada  = m.tipo === 'entrada';
+
+  document.getElementById('det-titulo').textContent =
+    esSalida ? 'Detalle de salida' : 'Detalle de entrada';
+  document.getElementById('det-badge').innerHTML =
+    `<span class="badge ${m.tipo}">${esSalida?'Salida':'Entrada'}</span>`;
+  document.getElementById('det-fecha').textContent =
+    `Registrado el ${formatFecha(m.registrado_en)} por ${m.usuarios?.nombre||'—'}`;
+
+  let filas = '';
+
+  // Producto y cantidad siempre
+  filas += `
+    <div class="detalle-item">
+      <div class="detalle-label">Producto</div>
+      <div class="detalle-val">${m.productos?.nombre||'—'}</div>
+    </div>
+    <div class="detalle-item">
+      <div class="detalle-label">Cantidad</div>
+      <div class="detalle-val">${m.cantidad} ${m.productos?.unidad||''}</div>
+    </div>`;
+
+  // Stock antes/después
+  filas += `
+    <div class="detalle-item">
+      <div class="detalle-label">Stock antes</div>
+      <div class="detalle-val">${m.stock_antes} ${m.productos?.unidad||''}</div>
+    </div>
+    <div class="detalle-item">
+      <div class="detalle-label">Stock después</div>
+      <div class="detalle-val">${m.stock_despues} ${m.productos?.unidad||''}</div>
+    </div>`;
+
+  // Sector (solo para intendente)
+  if (m.sectores) {
+    filas += `<hr class="detalle-divider">
+    <div class="detalle-item">
+      <div class="detalle-label">Sector</div>
+      <div class="detalle-val">${m.sectores.nombre}</div>
+    </div>`;
+  }
+
+  // Salida farmacia
+  if (esSalida && m.entregas_farmacia) {
+    filas += `<hr class="detalle-divider">
+    <div class="detalle-item">
+      <div class="detalle-label">Entregado a</div>
+      <div class="detalle-val">${m.entregas_farmacia.receptor_nombre}</div>
+    </div>
+    <div class="detalle-item">
+      <div class="detalle-label">DNI</div>
+      <div class="detalle-val">${m.entregas_farmacia.receptor_dni||'—'}</div>
+    </div>`;
+  }
+
+  // Salida galpón
+  if (esSalida && m.salidas_galpon) {
+    filas += `<hr class="detalle-divider">
+    <div class="detalle-item">
+      <div class="detalle-label">Retirado por</div>
+      <div class="detalle-val">${m.salidas_galpon.retirado_por}</div>
+    </div>
+    <div class="detalle-item">
+      <div class="detalle-label">Destino / Tarea</div>
+      <div class="detalle-val">${m.salidas_galpon.destino_tarea}</div>
+    </div>`;
+  }
+
+  // Entrada: proveedor y remito
+  if (esEntrada && (m.proveedor || m.nro_remito)) {
+    filas += `<hr class="detalle-divider">`;
+    if (m.proveedor) filas += `
+    <div class="detalle-item">
+      <div class="detalle-label">Proveedor</div>
+      <div class="detalle-val">${m.proveedor}</div>
+    </div>`;
+    if (m.nro_remito) filas += `
+    <div class="detalle-item">
+      <div class="detalle-label">Nro. de remito</div>
+      <div class="detalle-val">${m.nro_remito}</div>
+    </div>`;
+  }
+
+  // Observaciones
+  if (m.observaciones) {
+    filas += `<hr class="detalle-divider">
+    <div class="detalle-item full">
+      <div class="detalle-label">Observaciones</div>
+      <div class="detalle-val">${m.observaciones}</div>
+    </div>`;
+  }
+
+  document.getElementById('det-grid').innerHTML = filas;
+  document.getElementById('modal-detalle').classList.add('open');
 }
 
 // ── TOAST ──
