@@ -378,7 +378,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
           <div id="campos-entrada">
             <div class="form-row">
               <div class="form-field"><label>Proveedor / Origen</label><input type="text" id="mov-proveedor" placeholder="Ej: Droguería Central"></div>
-              <div class="form-field"><label>Nro. de remito</label><input type="text" id="mov-remito" placeholder="R-00123"></div>
+              <div class="form-field"><label>Nro. de remito/factura</label><input type="text" id="mov-remito" placeholder="R-00123"></div>
             </div>
           </div>
           <div class="form-field">
@@ -1035,7 +1035,7 @@ function abrirDetalle(m) {
     </div>`;
   }
 
-  // Entrada: proveedor y remito
+  // Entrada: proveedor y remito/factura
   if (esEntrada && (m.proveedor || m.nro_remito)) {
     filas += `<hr class="detalle-divider">`;
     if (m.proveedor) filas += `
@@ -1045,7 +1045,7 @@ function abrirDetalle(m) {
     </div>`;
     if (m.nro_remito) filas += `
     <div class="detalle-item">
-      <div class="detalle-label">Nro. de remito</div>
+      <div class="detalle-label">Nro. de remito/factura</div>
       <div class="detalle-val">${m.nro_remito}</div>
     </div>`;
   }
