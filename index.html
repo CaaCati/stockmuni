@@ -306,6 +306,8 @@ tr:hover td{background:rgba(255,255,255,.02);}
       <div class="sidebar-section">Historial</div>
       <button class="nav-item" onclick="navTo('historial',this)"><span class="icon">📋</span> Movimientos</button>
       <button class="nav-item" onclick="navTo('alertas',this)"><span class="icon">⚠️</span> Alertas de stock</button>
+      <div class="sidebar-section" id="nav-sec-reportes" style="display:none">Reportes</div>
+      <button class="nav-item" id="nav-btn-reportes" onclick="navTo('reportes',this)" style="display:none"><span class="icon">📊</span> Reportes</button>
     </div>
     <!-- Sidebar intendente -->
     <div class="sidebar" id="sidebar-admin" style="display:none">
@@ -316,6 +318,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
       <button class="nav-item" onclick="navTo('admin-galpon',this)"><span class="icon">🔧</span> Galpón</button>
       <div class="sidebar-section">Reportes</div>
       <button class="nav-item" onclick="navTo('admin-historial',this)"><span class="icon">📄</span> Historial global</button>
+      <button class="nav-item" onclick="navTo('reportes',this)"><span class="icon">📊</span> Reportes farmacia</button>
     </div>
 
     <div class="main">
@@ -356,33 +359,79 @@ tr:hover td{background:rgba(255,255,255,.02);}
           <div class="form-row">
             <div class="form-field">
               <label>Producto</label>
-              <select id="mov-producto"><option value="">Seleccioná...</option></select>
+              <select id="mov-producto" onchange="calcularTotal()"><option value="">Seleccioná...</option></select>
             </div>
             <div class="form-field">
               <label>Cantidad</label>
-              <input type="number" id="mov-cantidad" placeholder="0" min="1">
+              <input type="number" id="mov-cantidad" placeholder="0" min="1" oninput="calcularTotal()">
             </div>
           </div>
+
+          <!-- Campos salida farmacia (nuevos, opcionales) -->
           <div id="campos-salida-farmacia" style="display:none">
             <div class="form-row">
-              <div class="form-field"><label>Nombre del receptor *</label><input type="text" id="mov-receptor" placeholder="Nombre completo"></div>
-              <div class="form-field"><label>DNI *</label><input type="text" id="mov-dni" placeholder="30.123.456"></div>
+              <div class="form-field">
+                <label>Área solicitante <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+                <select id="mov-area">
+                  <option value="">— Sin área —</option>
+                  <option value="Acción Social">Acción Social</option>
+                  <option value="Salida Rural">Salida Rural</option>
+                  <option value="Farmacia">Farmacia</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>Quien retira <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+                <input type="text" id="mov-receptor" placeholder="Nombre de quien retira">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label>DNI <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+                <input type="text" id="mov-dni" placeholder="30.123.456">
+              </div>
+              <div class="form-field">
+                <label>Beneficiario final <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+                <input type="text" id="mov-beneficiario" placeholder="Si difiere de quien retira">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label>Monto unitario $ <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+                <input type="number" id="mov-monto-unitario" placeholder="0.00" min="0" step="0.01" oninput="calcularTotal()">
+              </div>
+              <div class="form-field">
+                <label>Total calculado</label>
+                <div id="mov-total-display" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--accent2);font-weight:600;min-height:42px;display:flex;align-items:center;">—</div>
+              </div>
             </div>
           </div>
+
+          <!-- Campos salida galpón (sin cambios) -->
           <div id="campos-salida-galpon" style="display:none">
             <div class="form-row">
               <div class="form-field"><label>Retirado por *</label><input type="text" id="mov-retirado" placeholder="Nombre del empleado"></div>
               <div class="form-field"><label>Destino / Tarea *</label><input type="text" id="mov-tarea" placeholder="Ej: Obra calle San Martín"></div>
             </div>
           </div>
+
+          <!-- Campos entrada -->
           <div id="campos-entrada">
             <div class="form-row">
               <div class="form-field"><label>Proveedor / Origen</label><input type="text" id="mov-proveedor" placeholder="Ej: Droguería Central"></div>
               <div class="form-field"><label>Nro. de remito/factura</label><input type="text" id="mov-remito" placeholder="R-00123"></div>
             </div>
+            <!-- Devolución: solo visible en farmacia -->
+            <div id="campo-devolucion" style="display:none">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 0;font-size:13px;color:var(--muted)">
+                <input type="checkbox" id="mov-devolucion" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent2)">
+                <span>Esta entrada es una <strong style="color:var(--text)">devolución</strong> (ej: rural que devuelve medicamentos no entregados)</span>
+              </label>
+            </div>
           </div>
+
           <div class="form-field">
-            <label>Observaciones (opcional)</label>
+            <label>Observaciones <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
             <textarea id="mov-obs" rows="2" placeholder="Cualquier detalle adicional..."></textarea>
           </div>
           <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;">
@@ -488,6 +537,79 @@ tr:hover td{background:rgba(255,255,255,.02);}
         </div>
       </div>
 
+      <!-- REPORTES FARMACIA -->
+      <div class="page" id="page-reportes">
+        <div class="page-title">Reportes de farmacia</div>
+        <div class="page-desc">Resumen de entregas y montos por período, área o beneficiario.</div>
+
+        <!-- Filtros -->
+        <div class="form-card" style="margin-bottom:16px">
+          <div class="form-row">
+            <div class="form-field">
+              <label>Desde</label>
+              <input type="date" id="rep-desde">
+            </div>
+            <div class="form-field">
+              <label>Hasta</label>
+              <input type="date" id="rep-hasta">
+            </div>
+            <div class="form-field">
+              <label>Área</label>
+              <select id="rep-area">
+                <option value="">Todas</option>
+                <option value="Acción Social">Acción Social</option>
+                <option value="Salida Rural">Salida Rural</option>
+                <option value="Farmacia">Farmacia</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Beneficiario / Receptor</label>
+              <input type="text" id="rep-beneficiario" placeholder="Nombre o DNI...">
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+            <button class="btn-sm primary" onclick="cargarReportes()" style="padding:10px 20px">Buscar</button>
+            <button class="btn-sm ghost" onclick="limpiarFiltrosReporte()" style="padding:10px 16px">Limpiar filtros</button>
+            <button class="btn-sm ghost" onclick="imprimirReporte()" style="padding:10px 16px;margin-left:auto">🖨️ Imprimir / PDF</button>
+          </div>
+        </div>
+
+        <!-- Totales resumen -->
+        <div class="stats-grid" id="rep-stats" style="display:none">
+          <div class="stat-card blue"><div class="stat-label">Entregas</div><div class="stat-value" id="rep-total-entregas">—</div><div class="stat-sub">registros</div></div>
+          <div class="stat-card green"><div class="stat-label">Monto total</div><div class="stat-value" id="rep-total-monto" style="font-size:20px">—</div><div class="stat-sub">en el período</div></div>
+          <div class="stat-card orange"><div class="stat-label">Beneficiarios</div><div class="stat-value" id="rep-total-beneficiarios">—</div><div class="stat-sub">únicos</div></div>
+        </div>
+
+        <!-- Tabla resultados -->
+        <div class="table-card" id="rep-table-card">
+          <div class="table-header">
+            <div class="table-title" id="rep-table-title">Resultados</div>
+          </div>
+          <div class="table-scroll">
+            <table id="rep-tabla">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Área</th>
+                  <th>Quien retira</th>
+                  <th>Beneficiario</th>
+                  <th>DNI</th>
+                  <th>Producto</th>
+                  <th>Cant.</th>
+                  <th>Monto unit.</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="rep-tbody">
+                <tr><td colspan="9" class="empty-row">Aplicá los filtros y presioná Buscar.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /main -->
   </div><!-- /app-body -->
 </div><!-- /app -->
@@ -521,7 +643,6 @@ tr:hover td{background:rgba(255,255,255,.02);}
       <div class="form-field">
         <label>Unidad *</label>
         <select id="np-unidad">
-          <option value="ampollas">ampollas</option>
           <option value="comprimidos">comprimidos</option>
           <option value="cápsulas">cápsulas</option>
           <option value="litros">litros</option>
@@ -677,6 +798,11 @@ function iniciarApp() {
     document.getElementById('topbar-sector').className   = 'topbar-sector ' + slug;
     document.getElementById('sidebar-encargado').style.display = 'flex';
     if (slug === 'galpon') document.getElementById('np-venc-wrap').style.display = 'none';
+    // Mostrar sección reportes solo a farmacia
+    if (slug === 'farmacia') {
+      document.getElementById('nav-sec-reportes').style.display = '';
+      document.getElementById('nav-btn-reportes').style.display = '';
+    }
     navTo('inventario', document.querySelector('#sidebar-encargado .nav-item'));
   }
 }
@@ -693,6 +819,7 @@ function navTo(pageId, btn) {
     'movimiento':      cargarProductosSelect,
     'historial':       cargarHistorial,
     'alertas':         cargarAlertas,
+    'reportes':        cargarReportes,
     'admin-dashboard': cargarAdminDashboard,
     'admin-farmacia':  () => cargarInventarioSector(1,'adm-farm-tbody'),
     'admin-galpon':    () => cargarInventarioSector(2,'adm-galp-tbody'),
@@ -783,11 +910,34 @@ function setTipo(tipo) {
   document.getElementById('campos-entrada').style.display             = tipo==='entrada'?'block':'none';
   document.getElementById('campos-salida-farmacia').style.display     = (tipo==='salida'&&slug==='farmacia')?'block':'none';
   document.getElementById('campos-salida-galpon').style.display       = (tipo==='salida'&&slug==='galpon')?'block':'none';
+  // Campo devolución: solo en entrada de farmacia
+  const campoDev = document.getElementById('campo-devolucion');
+  if (campoDev) campoDev.style.display = (tipo==='entrada'&&slug==='farmacia')?'block':'none';
+  calcularTotal();
+}
+
+function calcularTotal() {
+  const cant   = parseFloat(document.getElementById('mov-cantidad')?.value)||0;
+  const unit   = parseFloat(document.getElementById('mov-monto-unitario')?.value)||0;
+  const el     = document.getElementById('mov-total-display');
+  if (!el) return;
+  if (cant > 0 && unit > 0) {
+    const total = (cant * unit).toLocaleString('es-AR', {minimumFractionDigits:2});
+    el.textContent = '$ ' + total;
+    el.style.color = 'var(--accent2)';
+  } else {
+    el.textContent = '—';
+    el.style.color = 'var(--muted)';
+  }
 }
 
 function limpiarFormMovimiento() {
-  ['mov-producto','mov-cantidad','mov-receptor','mov-dni','mov-retirado','mov-tarea','mov-proveedor','mov-remito','mov-obs']
+  ['mov-producto','mov-cantidad','mov-receptor','mov-dni','mov-beneficiario','mov-area',
+   'mov-monto-unitario','mov-retirado','mov-tarea','mov-proveedor','mov-remito','mov-obs']
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const dev = document.getElementById('mov-devolucion');
+  if (dev) dev.checked = false;
+  calcularTotal();
 }
 
 async function guardarMovimiento() {
@@ -795,10 +945,6 @@ async function guardarMovimiento() {
   const cantidad   = parseFloat(document.getElementById('mov-cantidad').value);
   const slug       = currentPerfil.sectores.slug;
   if (!productoId||!cantidad||cantidad<=0) { showToast('⚠️ Completá producto y cantidad'); return; }
-  if (tipoMovimiento==='salida'&&slug==='farmacia') {
-    if (!document.getElementById('mov-receptor').value.trim()||!document.getElementById('mov-dni').value.trim())
-      { showToast('⚠️ Nombre y DNI son obligatorios'); return; }
-  }
   if (tipoMovimiento==='salida'&&slug==='galpon') {
     if (!document.getElementById('mov-retirado').value.trim()||!document.getElementById('mov-tarea').value.trim())
       { showToast('⚠️ Completá quién retira y el destino'); return; }
@@ -811,6 +957,11 @@ async function guardarMovimiento() {
     showToast('❌ No hay suficiente stock'); btn.disabled=false; btn.textContent='Confirmar registro'; return;
   }
   const stockDespues = tipoMovimiento==='entrada' ? stockAntes+cantidad : stockAntes-cantidad;
+
+  // Determinar si es devolución (farmacia + entrada + checkbox marcado)
+  const esDevolucion = slug==='farmacia' && tipoMovimiento==='entrada'
+    && document.getElementById('mov-devolucion')?.checked;
+
   const { data:mov, error } = await db.from('movimientos').insert({
     producto_id:  productoId, sector_id: currentPerfil.sector_id,
     tipo: tipoMovimiento, cantidad, stock_antes:stockAntes, stock_despues:stockDespues,
@@ -818,17 +969,30 @@ async function guardarMovimiento() {
     observaciones: document.getElementById('mov-obs').value.trim()||null,
     proveedor:  tipoMovimiento==='entrada'?(document.getElementById('mov-proveedor').value.trim()||null):null,
     nro_remito: tipoMovimiento==='entrada'?(document.getElementById('mov-remito').value.trim()||null):null,
+    es_devolucion: esDevolucion || false,
   }).select().single();
   if (error) { showToast('❌ Error: '+error.message); btn.disabled=false; btn.textContent='Confirmar registro'; return; }
-  if (tipoMovimiento==='salida'&&slug==='farmacia')
-    await db.from('entregas_farmacia').insert({ movimiento_id:mov.id,
-      receptor_nombre:document.getElementById('mov-receptor').value.trim(),
-      receptor_dni:   document.getElementById('mov-dni').value.trim() });
+
+  // Salida farmacia: guardar detalle extendido
+  if (tipoMovimiento==='salida'&&slug==='farmacia') {
+    const montoUnit = parseFloat(document.getElementById('mov-monto-unitario').value)||null;
+    await db.from('entregas_farmacia').insert({
+      movimiento_id:     mov.id,
+      area_solicitante:  document.getElementById('mov-area').value||null,
+      receptor_nombre:   document.getElementById('mov-receptor').value.trim()||null,
+      receptor_dni:      document.getElementById('mov-dni').value.trim()||null,
+      beneficiario_nombre: document.getElementById('mov-beneficiario').value.trim()||null,
+      monto_unitario:    montoUnit,
+      monto_total:       montoUnit ? montoUnit * cantidad : null,
+    });
+  }
+
   if (tipoMovimiento==='salida'&&slug==='galpon')
     await db.from('salidas_galpon').insert({ movimiento_id:mov.id,
       retirado_por: document.getElementById('mov-retirado').value.trim(),
       destino_tarea:document.getElementById('mov-tarea').value.trim() });
-  showToast('✅ Movimiento registrado');
+
+  showToast(esDevolucion ? '✅ Devolución registrada' : '✅ Movimiento registrado');
   limpiarFormMovimiento();
   btn.disabled=false; btn.textContent='Confirmar registro';
 }
@@ -838,17 +1002,26 @@ async function cargarHistorial() {
   const tbody = document.getElementById('hist-tbody');
   tbody.innerHTML=`<tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
   const { data } = await db.from('movimientos')
-    .select('*, productos(nombre,unidad), usuarios(nombre), entregas_farmacia(receptor_nombre,receptor_dni), salidas_galpon(retirado_por,destino_tarea)')
+    .select('*, productos(nombre,unidad), usuarios(nombre), entregas_farmacia(area_solicitante,receptor_nombre,receptor_dni,beneficiario_nombre,monto_unitario,monto_total), salidas_galpon(retirado_por,destino_tarea)')
     .eq('sector_id',currentPerfil.sector_id).order('registrado_en',{ascending:false}).limit(50);
   if (!data||!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="5">Sin movimientos todavía.</td></tr>`; return; }
-  // Guardar datos para el modal
   window._movData = {};
   data.forEach(m => window._movData[m.id] = m);
   tbody.innerHTML = data.map(m=>{
     let det='—';
-    if (m.entregas_farmacia) det=`→ ${m.entregas_farmacia.receptor_nombre}`;
+    const ef = m.entregas_farmacia;
+    if (ef) {
+      const partes = [];
+      if (ef.area_solicitante) partes.push(ef.area_solicitante);
+      if (ef.receptor_nombre)  partes.push(`→ ${ef.receptor_nombre}`);
+      if (ef.beneficiario_nombre && ef.beneficiario_nombre !== ef.receptor_nombre)
+        partes.push(`(${ef.beneficiario_nombre})`);
+      if (ef.monto_total) partes.push(`<span style="color:var(--accent2)">$ ${parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})}</span>`);
+      det = partes.join(' · ') || '—';
+    }
     if (m.salidas_galpon)    det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
     if (m.proveedor)         det=m.proveedor+(m.nro_remito?` — ${m.nro_remito}`:'');
+    if (m.es_devolucion)     det=`<span class="badge" style="background:rgba(56,217,169,.15);color:var(--accent2);border:1px solid rgba(56,217,169,.3)">Devolución</span> ` + det;
     return `<tr class="clickable-row" onclick="abrirDetalle(window._movData[${m.id}])">
       <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
       <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
@@ -1012,15 +1185,41 @@ function abrirDetalle(m) {
 
   // Salida farmacia
   if (esSalida && m.entregas_farmacia) {
-    filas += `<hr class="detalle-divider">
+    const ef = m.entregas_farmacia;
+    filas += `<hr class="detalle-divider">`;
+    if (ef.area_solicitante) filas += `
     <div class="detalle-item">
-      <div class="detalle-label">Entregado a</div>
-      <div class="detalle-val">${m.entregas_farmacia.receptor_nombre}</div>
-    </div>
+      <div class="detalle-label">Área solicitante</div>
+      <div class="detalle-val">${ef.area_solicitante}</div>
+    </div>`;
+    if (ef.receptor_nombre) filas += `
+    <div class="detalle-item">
+      <div class="detalle-label">Quien retira</div>
+      <div class="detalle-val">${ef.receptor_nombre}</div>
+    </div>`;
+    if (ef.receptor_dni) filas += `
     <div class="detalle-item">
       <div class="detalle-label">DNI</div>
-      <div class="detalle-val">${m.entregas_farmacia.receptor_dni||'—'}</div>
+      <div class="detalle-val">${ef.receptor_dni}</div>
     </div>`;
+    if (ef.beneficiario_nombre) filas += `
+    <div class="detalle-item">
+      <div class="detalle-label">Beneficiario final</div>
+      <div class="detalle-val">${ef.beneficiario_nombre}</div>
+    </div>`;
+    if (ef.monto_unitario) {
+      const total = (parseFloat(ef.monto_unitario) * parseFloat(m.cantidad)).toLocaleString('es-AR',{minimumFractionDigits:2});
+      const unit  = parseFloat(ef.monto_unitario).toLocaleString('es-AR',{minimumFractionDigits:2});
+      filas += `
+    <div class="detalle-item">
+      <div class="detalle-label">Monto unitario</div>
+      <div class="detalle-val">$ ${unit}</div>
+    </div>
+    <div class="detalle-item">
+      <div class="detalle-label">Total entrega</div>
+      <div class="detalle-val" style="color:var(--accent2);font-weight:600">$ ${total}</div>
+    </div>`;
+    }
   }
 
   // Salida galpón
@@ -1062,6 +1261,129 @@ function abrirDetalle(m) {
 
   document.getElementById('det-grid').innerHTML = filas;
   document.getElementById('modal-detalle').classList.add('open');
+}
+
+// ── REPORTES ──
+function limpiarFiltrosReporte() {
+  ['rep-desde','rep-hasta','rep-beneficiario'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('rep-area').value = '';
+  document.getElementById('rep-tbody').innerHTML = `<tr><td colspan="9" class="empty-row">Aplicá los filtros y presioná Buscar.</td></tr>`;
+  document.getElementById('rep-stats').style.display = 'none';
+}
+
+async function cargarReportes() {
+  const tbody  = document.getElementById('rep-tbody');
+  const desde  = document.getElementById('rep-desde').value;
+  const hasta  = document.getElementById('rep-hasta').value;
+  const area   = document.getElementById('rep-area').value;
+  const buscBenef = document.getElementById('rep-beneficiario').value.trim().toLowerCase();
+
+  tbody.innerHTML = `<tr><td colspan="9" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
+  document.getElementById('rep-stats').style.display = 'none';
+
+  // Buscar sector farmacia (id=1 por defecto, pero usamos el perfil o sector_id=1)
+  let query = db.from('movimientos')
+    .select('*, productos(nombre,unidad), usuarios(nombre), entregas_farmacia(area_solicitante,receptor_nombre,receptor_dni,beneficiario_nombre,monto_unitario,monto_total)')
+    .eq('tipo','salida')
+    .eq('sector_id', 1)   // farmacia
+    .order('registrado_en',{ascending:false})
+    .limit(500);
+
+  if (desde) query = query.gte('registrado_en', desde + 'T00:00:00');
+  if (hasta) query = query.lte('registrado_en', hasta + 'T23:59:59');
+
+  const { data, error } = await query;
+  if (error || !data) { tbody.innerHTML=`<tr class="empty-row"><td colspan="9">Error al cargar datos.</td></tr>`; return; }
+
+  // Filtrar por área y beneficiario en cliente (más flexible)
+  let filas = data.filter(m => {
+    const ef = m.entregas_farmacia;
+    if (area && ef?.area_solicitante !== area) return false;
+    if (buscBenef) {
+      const hayNombre = (ef?.receptor_nombre||'').toLowerCase().includes(buscBenef);
+      const hayBenef  = (ef?.beneficiario_nombre||'').toLowerCase().includes(buscBenef);
+      const hayDni    = (ef?.receptor_dni||'').includes(buscBenef);
+      if (!hayNombre && !hayBenef && !hayDni) return false;
+    }
+    return true;
+  });
+
+  if (!filas.length) {
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="9">Sin resultados para los filtros aplicados.</td></tr>`;
+    return;
+  }
+
+  // Calcular totales
+  let sumaTotal = 0;
+  const benefUnico = new Set();
+  filas.forEach(m => {
+    const ef = m.entregas_farmacia;
+    if (ef?.monto_total) sumaTotal += parseFloat(ef.monto_total);
+    const benef = ef?.beneficiario_nombre || ef?.receptor_nombre;
+    if (benef) benefUnico.add(benef.toLowerCase());
+  });
+
+  // Mostrar stats
+  document.getElementById('rep-total-entregas').textContent   = filas.length;
+  document.getElementById('rep-total-monto').textContent      = sumaTotal > 0
+    ? '$ ' + sumaTotal.toLocaleString('es-AR',{minimumFractionDigits:2}) : '—';
+  document.getElementById('rep-total-beneficiarios').textContent = benefUnico.size || '—';
+  document.getElementById('rep-stats').style.display = 'grid';
+
+  // Render tabla
+  tbody.innerHTML = filas.map(m => {
+    const ef = m.entregas_farmacia;
+    const montoUnit  = ef?.monto_unitario  ? '$ '+parseFloat(ef.monto_unitario).toLocaleString('es-AR',{minimumFractionDigits:2})  : '—';
+    const montoTotal = ef?.monto_total     ? '$ '+parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})      : '—';
+    return `<tr>
+      <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+      <td>${ef?.area_solicitante||'—'}</td>
+      <td>${ef?.receptor_nombre||'—'}</td>
+      <td>${ef?.beneficiario_nombre||'—'}</td>
+      <td>${ef?.receptor_dni||'—'}</td>
+      <td>${m.productos?.nombre||'—'}</td>
+      <td>${m.cantidad} ${m.productos?.unidad||''}</td>
+      <td>${montoUnit}</td>
+      <td style="color:var(--accent2);font-weight:600">${montoTotal}</td>
+    </tr>`;
+  }).join('');
+}
+
+function imprimirReporte() {
+  const desde = document.getElementById('rep-desde').value;
+  const hasta  = document.getElementById('rep-hasta').value;
+  const area   = document.getElementById('rep-area').value;
+  const titulo = `Reporte Farmacia${area?' — '+area:''}${desde?' desde '+desde:''}${hasta?' hasta '+hasta:''}`;
+  const tabla  = document.getElementById('rep-tabla').outerHTML;
+  const montoTotal = document.getElementById('rep-total-monto').textContent;
+  const entregas   = document.getElementById('rep-total-entregas').textContent;
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>${titulo}</title>
+  <style>
+    body{font-family:Arial,sans-serif;padding:32px;color:#111;font-size:13px}
+    h1{font-size:18px;margin-bottom:4px}
+    .sub{color:#666;margin-bottom:20px;font-size:12px}
+    .resumen{display:flex;gap:32px;margin-bottom:20px;background:#f5f5f5;padding:14px 18px;border-radius:8px}
+    .res-item label{font-size:11px;text-transform:uppercase;color:#888;display:block}
+    .res-item strong{font-size:16px}
+    table{width:100%;border-collapse:collapse}
+    th{background:#f0f0f0;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+    td{padding:7px 10px;border-bottom:1px solid #eee;font-size:12px}
+    tr:last-child td{border-bottom:none}
+    @media print{body{padding:16px}}
+  </style></head><body>
+  <h1>${titulo}</h1>
+  <div class="sub">Generado el ${new Date().toLocaleDateString('es-AR')} — Municipalidad de Caá Catí</div>
+  <div class="resumen">
+    <div class="res-item"><label>Total entregas</label><strong>${entregas}</strong></div>
+    <div class="res-item"><label>Monto total</label><strong>${montoTotal}</strong></div>
+  </div>
+  ${tabla}
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`);
+  win.document.close();
 }
 
 // ── TOAST ──
