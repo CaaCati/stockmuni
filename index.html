@@ -465,9 +465,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
         <div class="page-title">Historial de movimientos</div>
         <div class="page-desc">Registros de tu sector.</div>
         <div class="table-card">
-          <div class="table-header"><div class="table-title">Movimientos</div></div>
-          <!-- Tabla desktop -->
-          <div class="table-scroll" id="hist-table-wrap">
+          <div class="table-header">
+            <div class="table-title">Movimientos</div>
+            <input type="search" id="hist-buscar" placeholder="Buscar por nombre..." oninput="filtrarHistorial()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;outline:none;width:200px;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
             <table>
               <thead><tr><th>Fecha / Hora</th><th>Tipo</th><th>Producto</th><th>Cant.</th><th>Detalle</th></tr></thead>
               <tbody id="hist-tbody"><tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
@@ -504,9 +505,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
           </div>
         </div>
         <div class="table-card">
-          <div class="table-header"><div class="table-title">Últimos movimientos</div></div>
-          <!-- Tabla desktop -->
-          <div class="table-scroll" id="adm-mov-table-wrap">
+          <div class="table-header">
+            <div class="table-title">Últimos movimientos</div>
+            <input type="search" id="adm-mov-buscar" placeholder="Buscar por nombre..." oninput="filtrarAdmMov()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;outline:none;width:200px;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
             <table>
               <thead><tr><th>Fecha</th><th>Sector</th><th>Tipo</th><th>Producto</th><th>Cant.</th><th>Registró</th></tr></thead>
               <tbody id="adm-mov-tbody"><tr><td colspan="6" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
@@ -551,9 +553,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
         <div class="page-title">Historial global</div>
         <div class="page-desc">Todos los movimientos de ambos sectores.</div>
         <div class="table-card">
-          <div class="table-header"><div class="table-title">Movimientos</div></div>
-          <!-- Tabla desktop -->
-          <div class="table-scroll" id="adm-hist-table-wrap">
+          <div class="table-header">
+            <div class="table-title">Movimientos</div>
+            <input type="search" id="adm-hist-buscar" placeholder="Buscar por nombre..." oninput="filtrarAdmHist()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;outline:none;width:200px;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
             <table>
               <thead><tr><th>Fecha</th><th>Sector</th><th>Tipo</th><th>Producto</th><th>Cant.</th><th>Detalle</th><th>Registró</th></tr></thead>
               <tbody id="adm-hist-tbody"><tr><td colspan="7" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
@@ -1543,6 +1546,148 @@ function imprimirReporte() {
   <script>window.onload=()=>window.print()<\/script>
   </body></html>`);
   win.document.close();
+}
+
+// ── BUSCADORES ──
+function matchBusqueda(m, q) {
+  if (!q) return true;
+  const ef = m.entregas_farmacia;
+  const receptor   = (ef?.receptor_nombre    || '').toLowerCase();
+  const beneficiario = (ef?.beneficiario_nombre || '').toLowerCase();
+  const retirado   = (m.salidas_galpon?.retirado_por || '').toLowerCase();
+  return receptor.includes(q) || beneficiario.includes(q) || retirado.includes(q);
+}
+
+function renderFiltered(datos, dataKey, tbodyId, cardsId, buildRow, buildCard, colSpan) {
+  const q = document.getElementById(dataKey)?.value.trim().toLowerCase() || '';
+  const filtrados = datos.filter(m => matchBusqueda(m, q));
+  const tbody = document.getElementById(tbodyId);
+  const cards = document.getElementById(cardsId);
+  if (!filtrados.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${colSpan}">Sin resultados.</td></tr>`;
+    cards.innerHTML = `<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin resultados.</div>`;
+  } else {
+    tbody.innerHTML = filtrados.map(buildRow).join('');
+    cards.innerHTML = filtrados.map(buildCard).join('');
+  }
+  const mobile = esMobile();
+  tbody.closest('.table-scroll').style.display = mobile ? 'none' : '';
+  cards.style.display = mobile ? 'block' : 'none';
+}
+
+function filtrarHistorial() {
+  if (!window._movData) return;
+  const datos = Object.values(window._movData);
+  renderFiltered(datos, 'hist-buscar', 'hist-tbody', 'hist-cards',
+    m => {
+      let det='—';
+      const ef = m.entregas_farmacia;
+      if (ef) {
+        const partes=[];
+        if (ef.area_solicitante) partes.push(ef.area_solicitante);
+        if (ef.receptor_nombre)  partes.push(`→ ${ef.receptor_nombre}`);
+        if (ef.beneficiario_nombre && ef.beneficiario_nombre!==ef.receptor_nombre) partes.push(`(${ef.beneficiario_nombre})`);
+        if (ef.monto_total) partes.push(`<span style="color:var(--accent2)">$ ${parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})}</span>`);
+        det = partes.join(' · ') || '—';
+      }
+      if (m.salidas_galpon) det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
+      if (m.proveedor)      det=m.proveedor+(m.nro_remito?` — ${m.nro_remito}`:'');
+      if (m.es_devolucion)  det=`<span class="badge" style="background:rgba(56,217,169,.15);color:var(--accent2);border:1px solid rgba(56,217,169,.3)">Devolución</span> `+det;
+      return `<tr class="clickable-row" onclick="abrirDetalle(window._movData[${m.id}])">
+        <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+        <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
+        <td>${m.productos?.nombre||'—'}</td><td>${m.cantidad}</td>
+        <td style="color:var(--muted);font-size:12px">${det}</td></tr>`;
+    },
+    m => {
+      const esDev=m.es_devolucion;
+      return `<div class="hist-card" onclick="abrirDetalle(window._movData[${m.id}])">
+        <div class="hist-card-left">
+          <div class="hist-card-fecha">${formatFecha(m.registrado_en)}</div>
+          <div class="hist-card-producto">${m.productos?.nombre||'—'}</div>
+          <div class="hist-card-det">${detalleCortoPara(m)}</div>
+        </div>
+        <div class="hist-card-right">
+          <span class="badge ${esDev?'entrada':m.tipo}">${esDev?'Devolución':m.tipo==='entrada'?'Entrada':'Salida'}</span>
+          <span class="hist-card-cant">${m.cantidad} ${m.productos?.unidad||''}</span>
+          <span class="hist-card-chevron">ver más ›</span>
+        </div></div>`;
+    }, 5);
+}
+
+function filtrarAdmMov() {
+  if (!window._movDataAdm) return;
+  const datos = Object.values(window._movDataAdm);
+  renderFiltered(datos, 'adm-mov-buscar', 'adm-mov-tbody', 'adm-mov-cards',
+    m => {
+      const slug = m.sectores?.slug==='farmacia';
+      return `<tr class="clickable-row" onclick="abrirDetalle(window._movDataAdm[${m.id}])">
+        <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+        <td><span class="badge ${slug?'farmacia-tag':'galpon-tag'}">${slug?'Farmacia':'Galpón'}</span></td>
+        <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
+        <td>${m.productos?.nombre||'—'}</td><td>${m.cantidad}</td>
+        <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td></tr>`;
+    },
+    m => {
+      const esFarmacia=m.sectores?.slug==='farmacia'; const esDev=m.es_devolucion;
+      return `<div class="hist-card" onclick="abrirDetalle(window._movDataAdm[${m.id}])">
+        <div class="hist-card-left">
+          <div class="hist-card-fecha">${formatFecha(m.registrado_en)} &nbsp;·&nbsp;
+            <span class="badge ${esFarmacia?'farmacia-tag':'galpon-tag'}" style="font-size:10px;padding:2px 7px">${esFarmacia?'Farmacia':'Galpón'}</span>
+          </div>
+          <div class="hist-card-producto">${m.productos?.nombre||'—'}</div>
+          <div class="hist-card-det">${detalleCortoPara(m)}</div>
+        </div>
+        <div class="hist-card-right">
+          <span class="badge ${esDev?'entrada':m.tipo}">${esDev?'Devolución':m.tipo==='entrada'?'Entrada':'Salida'}</span>
+          <span class="hist-card-cant">${m.cantidad} ${m.productos?.unidad||''}</span>
+          <span class="hist-card-chevron">ver más ›</span>
+        </div></div>`;
+    }, 6);
+}
+
+function filtrarAdmHist() {
+  if (!window._movDataGlobal) return;
+  const datos = Object.values(window._movDataGlobal);
+  renderFiltered(datos, 'adm-hist-buscar', 'adm-hist-tbody', 'adm-hist-cards',
+    m => {
+      let det='—';
+      const ef=m.entregas_farmacia;
+      if (ef) {
+        const partes=[];
+        if (ef.area_solicitante) partes.push(ef.area_solicitante);
+        if (ef.receptor_nombre)  partes.push(`→ ${ef.receptor_nombre}`);
+        if (ef.beneficiario_nombre && ef.beneficiario_nombre!==ef.receptor_nombre) partes.push(`(${ef.beneficiario_nombre})`);
+        if (ef.monto_total) partes.push(`$ ${parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})}`);
+        det=partes.join(' · ')||'—';
+      }
+      if (m.salidas_galpon) det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
+      if (m.proveedor)      det=m.proveedor;
+      const slug=m.sectores?.slug==='farmacia';
+      return `<tr class="clickable-row" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
+        <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+        <td><span class="badge ${slug?'farmacia-tag':'galpon-tag'}">${slug?'Farmacia':'Galpón'}</span></td>
+        <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
+        <td>${m.productos?.nombre||'—'}</td><td>${m.cantidad}</td>
+        <td style="color:var(--muted);font-size:12px">${det}</td>
+        <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td></tr>`;
+    },
+    m => {
+      const esFarmacia=m.sectores?.slug==='farmacia'; const esDev=m.es_devolucion;
+      return `<div class="hist-card" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
+        <div class="hist-card-left">
+          <div class="hist-card-fecha">${formatFecha(m.registrado_en)} &nbsp;·&nbsp;
+            <span class="badge ${esFarmacia?'farmacia-tag':'galpon-tag'}" style="font-size:10px;padding:2px 7px">${esFarmacia?'Farmacia':'Galpón'}</span>
+          </div>
+          <div class="hist-card-producto">${m.productos?.nombre||'—'}</div>
+          <div class="hist-card-det">${detalleCortoPara(m)}</div>
+        </div>
+        <div class="hist-card-right">
+          <span class="badge ${esDev?'entrada':m.tipo}">${esDev?'Devolución':m.tipo==='entrada'?'Entrada':'Salida'}</span>
+          <span class="hist-card-cant">${m.cantidad} ${m.productos?.unidad||''}</span>
+          <span class="hist-card-chevron">ver más ›</span>
+        </div></div>`;
+    }, 7);
 }
 
 window.addEventListener('resize', () => {
