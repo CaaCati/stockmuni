@@ -505,15 +505,12 @@ tr:hover td{background:rgba(255,255,255,.02);}
         </div>
         <div class="table-card">
           <div class="table-header"><div class="table-title">Últimos movimientos</div></div>
-          <!-- Tabla desktop -->
-          <div class="table-scroll" id="adm-mov-table-wrap">
+          <div class="table-scroll">
             <table>
               <thead><tr><th>Fecha</th><th>Sector</th><th>Tipo</th><th>Producto</th><th>Cant.</th><th>Registró</th></tr></thead>
               <tbody id="adm-mov-tbody"><tr><td colspan="6" class="loading"><span class="spinner"></span>Cargando...</td></tr></tbody>
             </table>
           </div>
-          <!-- Tarjetas móvil -->
-          <div id="adm-mov-cards" style="display:none"></div>
         </div>
       </div>
 
@@ -547,6 +544,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
         </div>
       </div>
 
+      <!-- ADMIN HISTORIAL -->
       <div class="page" id="page-admin-historial">
         <div class="page-title">Historial global</div>
         <div class="page-desc">Todos los movimientos de ambos sectores.</div>
@@ -1051,16 +1049,21 @@ async function cargarHistorial() {
   const cards = document.getElementById('hist-cards');
   tbody.innerHTML=`<tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
   cards.innerHTML='';
+
   const { data } = await db.from('movimientos')
     .select('*, productos(nombre,unidad), usuarios(nombre), entregas_farmacia(area_solicitante,receptor_nombre,receptor_dni,beneficiario_nombre,monto_unitario,monto_total), salidas_galpon(retirado_por,destino_tarea)')
     .eq('sector_id',currentPerfil.sector_id).order('registrado_en',{ascending:false}).limit(50);
+
   if (!data||!data.length) {
     tbody.innerHTML=`<tr class="empty-row"><td colspan="5">Sin movimientos todavía.</td></tr>`;
     cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin movimientos todavía.</div>`;
-    renderHistorialLayout(); return;
+    renderHistorialLayout();
+    return;
   }
+
   window._movData = {};
   data.forEach(m => window._movData[m.id] = m);
+
   // Tabla desktop
   tbody.innerHTML = data.map(m=>{
     let det='—';
@@ -1069,13 +1072,14 @@ async function cargarHistorial() {
       const partes = [];
       if (ef.area_solicitante) partes.push(ef.area_solicitante);
       if (ef.receptor_nombre)  partes.push(`→ ${ef.receptor_nombre}`);
-      if (ef.beneficiario_nombre && ef.beneficiario_nombre !== ef.receptor_nombre) partes.push(`(${ef.beneficiario_nombre})`);
+      if (ef.beneficiario_nombre && ef.beneficiario_nombre !== ef.receptor_nombre)
+        partes.push(`(${ef.beneficiario_nombre})`);
       if (ef.monto_total) partes.push(`<span style="color:var(--accent2)">$ ${parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})}</span>`);
       det = partes.join(' · ') || '—';
     }
-    if (m.salidas_galpon) det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
-    if (m.proveedor)      det=m.proveedor+(m.nro_remito?` — ${m.nro_remito}`:'');
-    if (m.es_devolucion)  det=`<span class="badge" style="background:rgba(56,217,169,.15);color:var(--accent2);border:1px solid rgba(56,217,169,.3)">Devolución</span> ` + det;
+    if (m.salidas_galpon)    det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
+    if (m.proveedor)         det=m.proveedor+(m.nro_remito?` — ${m.nro_remito}`:'');
+    if (m.es_devolucion)     det=`<span class="badge" style="background:rgba(56,217,169,.15);color:var(--accent2);border:1px solid rgba(56,217,169,.3)">Devolución</span> ` + det;
     return `<tr class="clickable-row" onclick="abrirDetalle(window._movData[${m.id}])">
       <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
       <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
@@ -1084,22 +1088,27 @@ async function cargarHistorial() {
       <td style="color:var(--muted);font-size:12px">${det}</td>
     </tr>`;
   }).join('');
+
   // Tarjetas móvil
   cards.innerHTML = data.map(m=>{
-    const esDev = m.es_devolucion;
+    const det    = detalleCortoPara(m);
+    const esDev  = m.es_devolucion;
+    const tipoLabel = esDev ? 'Devolución' : (m.tipo==='entrada'?'Entrada':'Salida');
+    const tipoClass = esDev ? 'entrada' : m.tipo;
     return `<div class="hist-card" onclick="abrirDetalle(window._movData[${m.id}])">
       <div class="hist-card-left">
         <div class="hist-card-fecha">${formatFecha(m.registrado_en)}</div>
         <div class="hist-card-producto">${m.productos?.nombre||'—'}</div>
-        <div class="hist-card-det">${detalleCortoPara(m)}</div>
+        <div class="hist-card-det">${det}</div>
       </div>
       <div class="hist-card-right">
-        <span class="badge ${esDev?'entrada':m.tipo}">${esDev?'Devolución':m.tipo==='entrada'?'Entrada':'Salida'}</span>
+        <span class="badge ${tipoClass}">${tipoLabel}</span>
         <span class="hist-card-cant">${m.cantidad} ${m.productos?.unidad||''}</span>
         <span class="hist-card-chevron">ver más ›</span>
       </div>
     </div>`;
   }).join('');
+
   renderHistorialLayout();
 }
 
@@ -1141,20 +1150,12 @@ async function cargarAdminDashboard() {
   document.getElementById('adm-galp-alertas').textContent = (galp||[]).filter(p=>['critico','bajo','sin_stock'].includes(calcEstado(p))).length;
 
   const tbody = document.getElementById('adm-mov-tbody');
-  const cards = document.getElementById('adm-mov-cards');
   const { data:movs } = await db.from('movimientos')
-    .select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), entregas_farmacia(area_solicitante,receptor_nombre,beneficiario_nombre), salidas_galpon(retirado_por)')
+    .select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), entregas_farmacia(receptor_nombre,receptor_dni), salidas_galpon(retirado_por,destino_tarea)')
     .order('registrado_en',{ascending:false}).limit(15);
-
-  if (!movs||!movs.length) {
-    tbody.innerHTML=`<tr class="empty-row"><td colspan="6">Sin movimientos.</td></tr>`;
-    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin movimientos.</div>`;
-    renderAdmMovLayout(); return;
-  }
+  if (!movs||!movs.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="6">Sin movimientos.</td></tr>`; return; }
   window._movDataAdm = {};
   movs.forEach(m => window._movDataAdm[m.id] = m);
-
-  // Tabla desktop
   tbody.innerHTML = movs.map(m=>`<tr class="clickable-row" onclick="abrirDetalle(window._movDataAdm[${m.id}])">
     <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
     <td><span class="badge ${m.sectores?.slug==='farmacia'?'farmacia-tag':'galpon-tag'}">${m.sectores?.slug==='farmacia'?'Farmacia':'Galpón'}</span></td>
@@ -1163,15 +1164,63 @@ async function cargarAdminDashboard() {
     <td>${m.cantidad}</td>
     <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td>
   </tr>`).join('');
+}
+
+// ── HISTORIAL GLOBAL ──
+async function cargarHistorialGlobal() {
+  const tbody = document.getElementById('adm-hist-tbody');
+  const cards = document.getElementById('adm-hist-cards');
+  tbody.innerHTML=`<tr><td colspan="7" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
+  cards.innerHTML='';
+
+  const { data } = await db.from('movimientos')
+    .select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), entregas_farmacia(area_solicitante,receptor_nombre,receptor_dni,beneficiario_nombre,monto_unitario,monto_total), salidas_galpon(retirado_por,destino_tarea)')
+    .order('registrado_en',{ascending:false}).limit(100);
+
+  if (!data||!data.length) {
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="7">Sin movimientos.</td></tr>`;
+    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin movimientos.</div>`;
+    renderAdmHistorialLayout();
+    return;
+  }
+
+  window._movDataGlobal = {};
+  data.forEach(m => window._movDataGlobal[m.id] = m);
+
+  // Tabla desktop
+  tbody.innerHTML = data.map(m=>{
+    let det='—';
+    const ef = m.entregas_farmacia;
+    if (ef) {
+      const partes = [];
+      if (ef.area_solicitante) partes.push(ef.area_solicitante);
+      if (ef.receptor_nombre)  partes.push(`→ ${ef.receptor_nombre}`);
+      if (ef.beneficiario_nombre && ef.beneficiario_nombre !== ef.receptor_nombre)
+        partes.push(`(${ef.beneficiario_nombre})`);
+      if (ef.monto_total) partes.push(`$ ${parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})}`);
+      det = partes.join(' · ') || '—';
+    }
+    if (m.salidas_galpon) det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
+    if (m.proveedor)      det=m.proveedor;
+    return `<tr class="clickable-row" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
+      <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+      <td><span class="badge ${m.sectores?.slug==='farmacia'?'farmacia-tag':'galpon-tag'}">${m.sectores?.slug==='farmacia'?'Farmacia':'Galpón'}</span></td>
+      <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
+      <td>${m.productos?.nombre||'—'}</td>
+      <td>${m.cantidad}</td>
+      <td style="color:var(--muted);font-size:12px">${det}</td>
+      <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td>
+    </tr>`;
+  }).join('');
 
   // Tarjetas móvil
-  cards.innerHTML = movs.map(m=>{
-    const esFarmacia = m.sectores?.slug === 'farmacia';
+  cards.innerHTML = data.map(m=>{
+    const det        = detalleCortoPara(m);
     const esDev      = m.es_devolucion;
     const tipoLabel  = esDev ? 'Devolución' : (m.tipo==='entrada'?'Entrada':'Salida');
     const tipoClass  = esDev ? 'entrada' : m.tipo;
-    const det        = detalleCortoPara(m);
-    return `<div class="hist-card" onclick="abrirDetalle(window._movDataAdm[${m.id}])">
+    const esFarmacia = m.sectores?.slug === 'farmacia';
+    return `<div class="hist-card" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
       <div class="hist-card-left">
         <div class="hist-card-fecha">
           ${formatFecha(m.registrado_en)} &nbsp;·&nbsp;
@@ -1188,75 +1237,6 @@ async function cargarAdminDashboard() {
     </div>`;
   }).join('');
 
-  renderAdmMovLayout();
-}
-
-function renderAdmMovLayout() {
-  const mobile = esMobile();
-  document.getElementById('adm-mov-table-wrap').style.display = mobile ? 'none' : '';
-  document.getElementById('adm-mov-cards').style.display      = mobile ? 'block' : 'none';
-}
-
-// ── HISTORIAL GLOBAL ──
-async function cargarHistorialGlobal() {
-  const tbody = document.getElementById('adm-hist-tbody');
-  const cards = document.getElementById('adm-hist-cards');
-  tbody.innerHTML=`<tr><td colspan="7" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
-  cards.innerHTML='';
-  const { data } = await db.from('movimientos')
-    .select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), entregas_farmacia(area_solicitante,receptor_nombre,receptor_dni,beneficiario_nombre,monto_unitario,monto_total), salidas_galpon(retirado_por,destino_tarea)')
-    .order('registrado_en',{ascending:false}).limit(100);
-  if (!data||!data.length) {
-    tbody.innerHTML=`<tr class="empty-row"><td colspan="7">Sin movimientos.</td></tr>`;
-    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin movimientos.</div>`;
-    renderAdmHistorialLayout(); return;
-  }
-  window._movDataGlobal = {};
-  data.forEach(m => window._movDataGlobal[m.id] = m);
-  // Tabla desktop
-  tbody.innerHTML = data.map(m=>{
-    let det='—';
-    const ef = m.entregas_farmacia;
-    if (ef) {
-      const partes = [];
-      if (ef.area_solicitante) partes.push(ef.area_solicitante);
-      if (ef.receptor_nombre)  partes.push(`→ ${ef.receptor_nombre}`);
-      if (ef.beneficiario_nombre && ef.beneficiario_nombre !== ef.receptor_nombre) partes.push(`(${ef.beneficiario_nombre})`);
-      if (ef.monto_total) partes.push(`$ ${parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})}`);
-      det = partes.join(' · ') || '—';
-    }
-    if (m.salidas_galpon) det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
-    if (m.proveedor)      det=m.proveedor;
-    return `<tr class="clickable-row" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
-      <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
-      <td><span class="badge ${m.sectores?.slug==='farmacia'?'farmacia-tag':'galpon-tag'}">${m.sectores?.slug==='farmacia'?'Farmacia':'Galpón'}</span></td>
-      <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
-      <td>${m.productos?.nombre||'—'}</td>
-      <td>${m.cantidad}</td>
-      <td style="color:var(--muted);font-size:12px">${det}</td>
-      <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td>
-    </tr>`;
-  }).join('');
-  // Tarjetas móvil
-  cards.innerHTML = data.map(m=>{
-    const esFarmacia = m.sectores?.slug === 'farmacia';
-    const esDev      = m.es_devolucion;
-    return `<div class="hist-card" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
-      <div class="hist-card-left">
-        <div class="hist-card-fecha">
-          ${formatFecha(m.registrado_en)} &nbsp;·&nbsp;
-          <span class="badge ${esFarmacia?'farmacia-tag':'galpon-tag'}" style="font-size:10px;padding:2px 7px">${esFarmacia?'Farmacia':'Galpón'}</span>
-        </div>
-        <div class="hist-card-producto">${m.productos?.nombre||'—'}</div>
-        <div class="hist-card-det">${detalleCortoPara(m)}</div>
-      </div>
-      <div class="hist-card-right">
-        <span class="badge ${esDev?'entrada':m.tipo}">${esDev?'Devolución':m.tipo==='entrada'?'Entrada':'Salida'}</span>
-        <span class="hist-card-cant">${m.cantidad} ${m.productos?.unidad||''}</span>
-        <span class="hist-card-chevron">ver más ›</span>
-      </div>
-    </div>`;
-  }).join('');
   renderAdmHistorialLayout();
 }
 
@@ -1546,12 +1526,12 @@ function imprimirReporte() {
 }
 
 window.addEventListener('resize', () => {
-  if (document.getElementById('hist-cards'))     renderHistorialLayout();
-  if (document.getElementById('adm-hist-cards')) renderAdmHistorialLayout();
-  if (document.getElementById('adm-mov-cards'))  renderAdmMovLayout();
+  if (document.getElementById('hist-cards'))       renderHistorialLayout();
+  if (document.getElementById('adm-hist-cards'))   renderAdmHistorialLayout();
 });
 
-// ── TOAST ──
+// ── TOAST ──;
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent=msg;
