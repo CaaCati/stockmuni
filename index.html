@@ -463,7 +463,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
         <div class="page-title">Historial de movimientos</div>
         <div class="page-desc">Registros de tu sector.</div>
         <div class="table-card">
-          <div class="table-header"><div class="table-title">Movimientos</div></div>
+          <div class="table-header">
+            <div class="table-title">Movimientos</div>
+            <input type="search" id="hist-buscar" placeholder="Buscar por nombre, área..." oninput="filtrarHistorial()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;outline:none;width:200px;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
           <!-- Tabla desktop -->
           <div class="table-scroll" id="hist-table-wrap">
             <table>
@@ -502,7 +505,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
           </div>
         </div>
         <div class="table-card">
-          <div class="table-header"><div class="table-title">Últimos movimientos</div></div>
+          <div class="table-header">
+            <div class="table-title">Últimos movimientos</div>
+            <input type="search" id="adm-mov-buscar" placeholder="Buscar por nombre, área..." oninput="filtrarAdmMov()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;outline:none;width:200px;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
           <!-- Tabla desktop -->
           <div class="table-scroll" id="adm-mov-table-wrap">
             <table>
@@ -549,7 +555,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
         <div class="page-title">Historial global</div>
         <div class="page-desc">Todos los movimientos de ambos sectores.</div>
         <div class="table-card">
-          <div class="table-header"><div class="table-title">Movimientos</div></div>
+          <div class="table-header">
+            <div class="table-title">Movimientos</div>
+            <input type="search" id="adm-hist-buscar" placeholder="Buscar por nombre..." oninput="filtrarAdmHist()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;outline:none;width:200px;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
           <!-- Tabla desktop -->
           <div class="table-scroll" id="adm-hist-table-wrap">
             <table>
@@ -563,6 +572,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
           <div id="adm-hist-mas-wrap" style="display:none;padding:14px;text-align:center;border-top:1px solid var(--border)">
             <button class="btn-sm ghost" onclick="cargarMasHistorialGlobal()" id="btn-adm-hist-mas" style="width:100%;max-width:300px">Cargar más registros</button>
           </div>
+        </div>
+      </div>
+
+      <!-- REPORTES FARMACIA -->
       <div class="page" id="page-reportes">
         <div class="page-title">Reportes de farmacia</div>
         <div class="page-desc">Resumen de entregas y montos por período, área o beneficiario.</div>
@@ -733,7 +746,6 @@ async function doLogin() {
     Object.keys(localStorage).forEach(k => {
       if (k.startsWith('sb-')) localStorage.removeItem(k);
     });
-    sessionStorage.clear();
   } catch(e) {}
   currentUser = null; currentPerfil = null; appReady = false;
 
@@ -750,7 +762,6 @@ async function doLogin() {
       Object.keys(localStorage).forEach(k => {
         if (k.startsWith('sb-')) localStorage.removeItem(k);
       });
-      sessionStorage.clear();
     } catch(e) {}
     await new Promise(r => setTimeout(r, 500));
     try {
@@ -1623,6 +1634,157 @@ window.addEventListener('resize', () => {
   if (document.getElementById('adm-hist-cards')) renderAdmHistorialLayout();
   if (document.getElementById('adm-mov-cards'))  renderAdmMovLayout();
 });
+
+// ── BUSCADORES ──
+function matchBusqueda(m, q) {
+  if (!q) return true;
+  const ef = m.entregas_farmacia;
+  const receptor     = (ef?.receptor_nombre     || '').toLowerCase();
+  const beneficiario = (ef?.beneficiario_nombre || '').toLowerCase();
+  const area         = (ef?.area_solicitante    || '').toLowerCase();
+  const retirado     = (m.salidas_galpon?.retirado_por || '').toLowerCase();
+  const producto     = (m.productos?.nombre     || '').toLowerCase();
+  return receptor.includes(q) || beneficiario.includes(q) || area.includes(q) || retirado.includes(q) || producto.includes(q);
+}
+
+function filtrarHistorial() {
+  if (!window._movData) return;
+  const q = document.getElementById('hist-buscar')?.value.trim().toLowerCase() || '';
+  const filtrados = Object.values(window._movData).filter(m => matchBusqueda(m, q));
+  const tbody = document.getElementById('hist-tbody');
+  const cards = document.getElementById('hist-cards');
+  if (!filtrados.length) {
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="5">Sin resultados.</td></tr>`;
+    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin resultados.</div>`;
+  } else {
+    tbody.innerHTML = filtrados.map(m=>{
+      let det='—';
+      const ef=m.entregas_farmacia;
+      if (ef) {
+        const p=[];
+        if (ef.area_solicitante) p.push(ef.area_solicitante);
+        if (ef.receptor_nombre)  p.push(`→ ${ef.receptor_nombre}`);
+        if (ef.beneficiario_nombre&&ef.beneficiario_nombre!==ef.receptor_nombre) p.push(`(${ef.beneficiario_nombre})`);
+        if (ef.monto_total) p.push(`<span style="color:var(--accent2)">$ ${parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})}</span>`);
+        det=p.join(' · ')||'—';
+      }
+      if (m.salidas_galpon) det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
+      if (m.proveedor)      det=m.proveedor+(m.nro_remito?` — ${m.nro_remito}`:'');
+      if (m.es_devolucion)  det=`<span class="badge" style="background:rgba(56,217,169,.15);color:var(--accent2);border:1px solid rgba(56,217,169,.3)">Devolución</span> `+det;
+      return `<tr class="clickable-row" onclick="abrirDetalle(window._movData[${m.id}])">
+        <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+        <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
+        <td>${m.productos?.nombre||'—'}</td><td>${m.cantidad}</td>
+        <td style="color:var(--muted);font-size:12px">${det}</td></tr>`;
+    }).join('');
+    cards.innerHTML = filtrados.map(m=>{
+      const esDev=m.es_devolucion;
+      return `<div class="hist-card" onclick="abrirDetalle(window._movData[${m.id}])">
+        <div class="hist-card-left">
+          <div class="hist-card-fecha">${formatFecha(m.registrado_en)}</div>
+          <div class="hist-card-producto">${m.productos?.nombre||'—'}</div>
+          <div class="hist-card-det">${detalleCortoPara(m)}</div>
+        </div>
+        <div class="hist-card-right">
+          <span class="badge ${esDev?'entrada':m.tipo}">${esDev?'Devolución':m.tipo==='entrada'?'Entrada':'Salida'}</span>
+          <span class="hist-card-cant">${m.cantidad} ${m.productos?.unidad||''}</span>
+          <span class="hist-card-chevron">ver más ›</span>
+        </div></div>`;
+    }).join('');
+  }
+  renderHistorialLayout();
+}
+
+function filtrarAdmMov() {
+  if (!window._movDataAdm) return;
+  const q = document.getElementById('adm-mov-buscar')?.value.trim().toLowerCase() || '';
+  const filtrados = Object.values(window._movDataAdm).filter(m => matchBusqueda(m, q));
+  const tbody = document.getElementById('adm-mov-tbody');
+  const cards = document.getElementById('adm-mov-cards');
+  if (!filtrados.length) {
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="6">Sin resultados.</td></tr>`;
+    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin resultados.</div>`;
+  } else {
+    tbody.innerHTML = filtrados.map(m=>{
+      const slug=m.sectores?.slug==='farmacia';
+      return `<tr class="clickable-row" onclick="abrirDetalle(window._movDataAdm[${m.id}])">
+        <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+        <td><span class="badge ${slug?'farmacia-tag':'galpon-tag'}">${slug?'Farmacia':'Galpón'}</span></td>
+        <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
+        <td>${m.productos?.nombre||'—'}</td><td>${m.cantidad}</td>
+        <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td></tr>`;
+    }).join('');
+    cards.innerHTML = filtrados.map(m=>{
+      const esFarmacia=m.sectores?.slug==='farmacia'; const esDev=m.es_devolucion;
+      return `<div class="hist-card" onclick="abrirDetalle(window._movDataAdm[${m.id}])">
+        <div class="hist-card-left">
+          <div class="hist-card-fecha">${formatFecha(m.registrado_en)} &nbsp;·&nbsp;
+            <span class="badge ${esFarmacia?'farmacia-tag':'galpon-tag'}" style="font-size:10px;padding:2px 7px">${esFarmacia?'Farmacia':'Galpón'}</span>
+          </div>
+          <div class="hist-card-producto">${m.productos?.nombre||'—'}</div>
+          <div class="hist-card-det">${detalleCortoPara(m)}</div>
+        </div>
+        <div class="hist-card-right">
+          <span class="badge ${esDev?'entrada':m.tipo}">${esDev?'Devolución':m.tipo==='entrada'?'Entrada':'Salida'}</span>
+          <span class="hist-card-cant">${m.cantidad} ${m.productos?.unidad||''}</span>
+          <span class="hist-card-chevron">ver más ›</span>
+        </div></div>`;
+    }).join('');
+  }
+  renderAdmMovLayout();
+}
+
+function filtrarAdmHist() {
+  if (!window._movDataGlobal) return;
+  const q = document.getElementById('adm-hist-buscar')?.value.trim().toLowerCase() || '';
+  const filtrados = Object.values(window._movDataGlobal).filter(m => matchBusqueda(m, q));
+  const tbody = document.getElementById('adm-hist-tbody');
+  const cards = document.getElementById('adm-hist-cards');
+  if (!filtrados.length) {
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="7">Sin resultados.</td></tr>`;
+    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin resultados.</div>`;
+  } else {
+    tbody.innerHTML = filtrados.map(m=>{
+      let det='—';
+      const ef=m.entregas_farmacia;
+      if (ef) {
+        const p=[];
+        if (ef.area_solicitante) p.push(ef.area_solicitante);
+        if (ef.receptor_nombre)  p.push(`→ ${ef.receptor_nombre}`);
+        if (ef.beneficiario_nombre&&ef.beneficiario_nombre!==ef.receptor_nombre) p.push(`(${ef.beneficiario_nombre})`);
+        if (ef.monto_total) p.push(`$ ${parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})}`);
+        det=p.join(' · ')||'—';
+      }
+      if (m.salidas_galpon) det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
+      if (m.proveedor)      det=m.proveedor;
+      const slug=m.sectores?.slug==='farmacia';
+      return `<tr class="clickable-row" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
+        <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+        <td><span class="badge ${slug?'farmacia-tag':'galpon-tag'}">${slug?'Farmacia':'Galpón'}</span></td>
+        <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
+        <td>${m.productos?.nombre||'—'}</td><td>${m.cantidad}</td>
+        <td style="color:var(--muted);font-size:12px">${det}</td>
+        <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td></tr>`;
+    }).join('');
+    cards.innerHTML = filtrados.map(m=>{
+      const esFarmacia=m.sectores?.slug==='farmacia'; const esDev=m.es_devolucion;
+      return `<div class="hist-card" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
+        <div class="hist-card-left">
+          <div class="hist-card-fecha">${formatFecha(m.registrado_en)} &nbsp;·&nbsp;
+            <span class="badge ${esFarmacia?'farmacia-tag':'galpon-tag'}" style="font-size:10px;padding:2px 7px">${esFarmacia?'Farmacia':'Galpón'}</span>
+          </div>
+          <div class="hist-card-producto">${m.productos?.nombre||'—'}</div>
+          <div class="hist-card-det">${detalleCortoPara(m)}</div>
+        </div>
+        <div class="hist-card-right">
+          <span class="badge ${esDev?'entrada':m.tipo}">${esDev?'Devolución':m.tipo==='entrada'?'Entrada':'Salida'}</span>
+          <span class="hist-card-cant">${m.cantidad} ${m.productos?.unidad||''}</span>
+          <span class="hist-card-chevron">ver más ›</span>
+        </div></div>`;
+    }).join('');
+  }
+  renderAdmHistorialLayout();
+}
 
 // ── TOAST ──
 function showToast(msg) {
