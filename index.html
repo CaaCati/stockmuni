@@ -716,6 +716,7 @@ let currentUser    = null;
 let currentPerfil  = null;
 let tipoMovimiento = 'entrada';
 let appReady       = false;
+let loginManual    = false; // flag para evitar doble cargarPerfil
 
 // ── SIDEBAR MOBILE ──
 function toggleSidebar() {
@@ -739,6 +740,7 @@ async function doLogin() {
   if (!email || !pass) { errEl.textContent = 'Completá email y contraseña.'; return; }
   errEl.textContent = '';
   btn.disabled = true; btn.textContent = 'Ingresando...';
+  loginManual = true;
 
   // Limpiar TODO: sesión activa, storage y estado local
   try { await db.auth.signOut(); } catch(e) {}
@@ -767,11 +769,13 @@ async function doLogin() {
     try {
       const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
       btn.disabled = false; btn.textContent = 'Ingresar';
-      if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; return; }
+      if (error) { loginManual = false; errEl.textContent = 'Email o contraseña incorrectos.'; return; }
       currentUser = data.user;
       errEl.textContent = '';
       await cargarPerfil();
+      loginManual = false;
     } catch(e) {
+      loginManual = false;
       btn.disabled = false; btn.textContent = 'Ingresar';
       errEl.textContent = 'Error de conexión. Revisá tu internet.';
     }
@@ -779,15 +783,17 @@ async function doLogin() {
 
   try {
     const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
-    if (reintentando) return; // el timeout ya está manejando
+    if (reintentando) return;
     clearTimeout(timeout);
     btn.disabled = false; btn.textContent = 'Ingresar';
-    if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; return; }
+    if (error) { loginManual = false; errEl.textContent = 'Email o contraseña incorrectos.'; return; }
     currentUser = data.user;
     await cargarPerfil();
+    loginManual = false;
   } catch(e) {
     if (reintentando) return;
     clearTimeout(timeout);
+    loginManual = false;
     btn.disabled = false; btn.textContent = 'Ingresar';
     errEl.textContent = 'Error de conexión. Revisá tu internet.';
   }
@@ -827,11 +833,7 @@ async function doLogout() {
 
 // Restaurar sesión al recargar página (solo si no hay sesión activa ya)
 db.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'SIGNED_IN' && session && !appReady && !currentPerfil) {
-    // Solo restaurar sesión si el usuario NO está intentando loguear manualmente
-    const btnLogin = document.getElementById('btn-login');
-    const loginEnProgreso = btnLogin && btnLogin.disabled;
-    if (loginEnProgreso) return;
+  if (event === 'SIGNED_IN' && session && !appReady && !currentPerfil && !loginManual) {
     currentUser = session.user;
     await cargarPerfil();
   }
@@ -1111,8 +1113,9 @@ async function cargarHistorial(append = false) {
     renderHistorialLayout(); return;
   }
 
-  if (!window._movData || !append) window._movData = {};
+  if (!window._movData || !append) { window._movData = {}; window._movArr = []; }
   data.forEach(m => window._movData[m.id] = m);
+  window._movArr = window._movArr.concat(data);
   histOffset += data.length;
 
   const newRows = data.map(m => {
@@ -1220,7 +1223,9 @@ async function cargarAdminDashboard() {
     renderAdmMovLayout(); return;
   }
   window._movDataAdm = {};
+  window._movArrAdm  = [];
   movs.forEach(m => window._movDataAdm[m.id] = m);
+  window._movArrAdm = movs.slice();
 
   // Tabla desktop
   tbody.innerHTML = movs.map(m=>`<tr class="clickable-row" onclick="abrirDetalle(window._movDataAdm[${m.id}])">
@@ -1292,8 +1297,9 @@ async function cargarHistorialGlobal(append = false) {
     document.getElementById('adm-hist-mas-wrap').style.display = 'none';
     renderAdmHistorialLayout(); return;
   }
-  if (!window._movDataGlobal || !append) window._movDataGlobal = {};
+  if (!window._movDataGlobal || !append) { window._movDataGlobal = {}; window._movArrGlobal = []; }
   data.forEach(m => window._movDataGlobal[m.id] = m);
+  window._movArrGlobal = (window._movArrGlobal||[]).concat(data);
   admHistOffset += data.length;
   const newRows = data.map(m=>{
     let det='—';
@@ -1648,11 +1654,58 @@ function matchBusqueda(m, q) {
 }
 
 function filtrarHistorial() {
-  if (!window._movData) return;
+  if (!window._movArr) return;
   const q = document.getElementById('hist-buscar')?.value.trim().toLowerCase() || '';
-  const filtrados = Object.values(window._movData).filter(m => matchBusqueda(m, q));
+  // Si no hay búsqueda, re-renderizar con el orden original
+  if (!q) { _renderHistorial(window._movArr); return; }
+  const filtrados = window._movArr.filter(m => matchBusqueda(m, q));
+  _renderHistorial(filtrados, q);
+}
+
+function _renderHistorial(lista, q='') {
   const tbody = document.getElementById('hist-tbody');
   const cards = document.getElementById('hist-cards');
+  if (!lista.length) {
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="5">${q?'Sin resultados.':'Sin movimientos todavía.'}</td></tr>`;
+    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">${q?'Sin resultados.':'Sin movimientos todavía.'}</div>`;
+  } else {
+    tbody.innerHTML = lista.map(m=>{
+      let det='—';
+      const ef=m.entregas_farmacia;
+      if (ef) {
+        const p=[];
+        if (ef.area_solicitante) p.push(ef.area_solicitante);
+        if (ef.receptor_nombre)  p.push(`→ ${ef.receptor_nombre}`);
+        if (ef.beneficiario_nombre&&ef.beneficiario_nombre!==ef.receptor_nombre) p.push(`(${ef.beneficiario_nombre})`);
+        if (ef.monto_total) p.push(`<span style="color:var(--accent2)">$ ${parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})}</span>`);
+        det=p.join(' · ')||'—';
+      }
+      if (m.salidas_galpon) det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
+      if (m.proveedor)      det=m.proveedor+(m.nro_remito?` — ${m.nro_remito}`:'');
+      if (m.es_devolucion)  det=`<span class="badge" style="background:rgba(56,217,169,.15);color:var(--accent2);border:1px solid rgba(56,217,169,.3)">Devolución</span> `+det;
+      return `<tr class="clickable-row" onclick="abrirDetalle(window._movData[${m.id}])">
+        <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
+        <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
+        <td>${m.productos?.nombre||'—'}</td><td>${m.cantidad}</td>
+        <td style="color:var(--muted);font-size:12px">${det}</td></tr>`;
+    }).join('');
+    cards.innerHTML = lista.map(m=>{
+      const esDev=m.es_devolucion;
+      return `<div class="hist-card" onclick="abrirDetalle(window._movData[${m.id}])">
+        <div class="hist-card-left">
+          <div class="hist-card-fecha">${formatFecha(m.registrado_en)}</div>
+          <div class="hist-card-producto">${m.productos?.nombre||'—'}</div>
+          <div class="hist-card-det">${detalleCortoPara(m)}</div>
+        </div>
+        <div class="hist-card-right">
+          <span class="badge ${esDev?'entrada':m.tipo}">${esDev?'Devolución':m.tipo==='entrada'?'Entrada':'Salida'}</span>
+          <span class="hist-card-cant">${m.cantidad} ${m.productos?.unidad||''}</span>
+          <span class="hist-card-chevron">ver más ›</span>
+        </div></div>`;
+    }).join('');
+  }
+  renderHistorialLayout();
+}
   if (!filtrados.length) {
     tbody.innerHTML=`<tr class="empty-row"><td colspan="5">Sin resultados.</td></tr>`;
     cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin resultados.</div>`;
@@ -1696,16 +1749,20 @@ function filtrarHistorial() {
 }
 
 function filtrarAdmMov() {
-  if (!window._movDataAdm) return;
+  if (!window._movArrAdm) return;
   const q = document.getElementById('adm-mov-buscar')?.value.trim().toLowerCase() || '';
-  const filtrados = Object.values(window._movDataAdm).filter(m => matchBusqueda(m, q));
+  if (!q) { _renderAdmMov(window._movArrAdm); return; }
+  _renderAdmMov(window._movArrAdm.filter(m => matchBusqueda(m, q)), q);
+}
+
+function _renderAdmMov(lista, q='') {
   const tbody = document.getElementById('adm-mov-tbody');
   const cards = document.getElementById('adm-mov-cards');
-  if (!filtrados.length) {
-    tbody.innerHTML=`<tr class="empty-row"><td colspan="6">Sin resultados.</td></tr>`;
-    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin resultados.</div>`;
+  if (!lista.length) {
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="6">${q?'Sin resultados.':'Sin movimientos.'}</td></tr>`;
+    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">${q?'Sin resultados.':'Sin movimientos.'}</div>`;
   } else {
-    tbody.innerHTML = filtrados.map(m=>{
+    tbody.innerHTML = lista.map(m=>{
       const slug=m.sectores?.slug==='farmacia';
       return `<tr class="clickable-row" onclick="abrirDetalle(window._movDataAdm[${m.id}])">
         <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
@@ -1714,7 +1771,7 @@ function filtrarAdmMov() {
         <td>${m.productos?.nombre||'—'}</td><td>${m.cantidad}</td>
         <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td></tr>`;
     }).join('');
-    cards.innerHTML = filtrados.map(m=>{
+    cards.innerHTML = lista.map(m=>{
       const esFarmacia=m.sectores?.slug==='farmacia'; const esDev=m.es_devolucion;
       return `<div class="hist-card" onclick="abrirDetalle(window._movDataAdm[${m.id}])">
         <div class="hist-card-left">
@@ -1735,16 +1792,20 @@ function filtrarAdmMov() {
 }
 
 function filtrarAdmHist() {
-  if (!window._movDataGlobal) return;
+  if (!window._movArrGlobal) return;
   const q = document.getElementById('adm-hist-buscar')?.value.trim().toLowerCase() || '';
-  const filtrados = Object.values(window._movDataGlobal).filter(m => matchBusqueda(m, q));
+  if (!q) { _renderAdmHist(window._movArrGlobal); return; }
+  _renderAdmHist(window._movArrGlobal.filter(m => matchBusqueda(m, q)), q);
+}
+
+function _renderAdmHist(lista, q='') {
   const tbody = document.getElementById('adm-hist-tbody');
   const cards = document.getElementById('adm-hist-cards');
-  if (!filtrados.length) {
-    tbody.innerHTML=`<tr class="empty-row"><td colspan="7">Sin resultados.</td></tr>`;
-    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin resultados.</div>`;
+  if (!lista.length) {
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="7">${q?'Sin resultados.':'Sin movimientos.'}</td></tr>`;
+    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">${q?'Sin resultados.':'Sin movimientos.'}</div>`;
   } else {
-    tbody.innerHTML = filtrados.map(m=>{
+    tbody.innerHTML = lista.map(m=>{
       let det='—';
       const ef=m.entregas_farmacia;
       if (ef) {
@@ -1766,7 +1827,7 @@ function filtrarAdmHist() {
         <td style="color:var(--muted);font-size:12px">${det}</td>
         <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td></tr>`;
     }).join('');
-    cards.innerHTML = filtrados.map(m=>{
+    cards.innerHTML = lista.map(m=>{
       const esFarmacia=m.sectores?.slug==='farmacia'; const esDev=m.es_devolucion;
       return `<div class="hist-card" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
         <div class="hist-card-left">
