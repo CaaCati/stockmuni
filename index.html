@@ -445,6 +445,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
             </div>
           </div>
 
+          <div class="form-field" style="max-width:220px">
+            <label>Fecha del movimiento <span style="color:var(--muted);font-weight:400">(por defecto hoy)</span></label>
+            <input type="date" id="mov-fecha">
+          </div>
           <div class="form-field">
             <label>Observaciones <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
             <textarea id="mov-obs" rows="2" placeholder="Cualquier detalle adicional..."></textarea>
@@ -921,6 +925,9 @@ async function cargarProductosSelect() {
   if (data) data.forEach(p => {
     sel.innerHTML += `<option value="${p.id}">${p.nombre} (stock: ${p.stock_actual} ${p.unidad})</option>`;
   });
+  // Inicializar fecha a hoy
+  const fechaEl = document.getElementById('mov-fecha');
+  if (fechaEl && !fechaEl.value) fechaEl.value = new Date().toISOString().slice(0,10);
   setTipo(tipoMovimiento);
 }
 
@@ -959,6 +966,9 @@ function limpiarFormMovimiento() {
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const dev = document.getElementById('mov-devolucion');
   if (dev) dev.checked = false;
+  // Resetear fecha a hoy
+  const fechaEl = document.getElementById('mov-fecha');
+  if (fechaEl) fechaEl.value = new Date().toISOString().slice(0,10);
   calcularTotal();
 }
 
@@ -984,10 +994,17 @@ async function guardarMovimiento() {
   const esDevolucion = slug==='farmacia' && tipoMovimiento==='entrada'
     && document.getElementById('mov-devolucion')?.checked;
 
+  // Fecha elegida por el usuario (o hoy si no hay nada)
+  const fechaVal = document.getElementById('mov-fecha')?.value;
+  const registradoEn = fechaVal
+    ? new Date(fechaVal + 'T' + new Date().toTimeString().slice(0,8)).toISOString()
+    : new Date().toISOString();
+
   const { data:mov, error } = await db.from('movimientos').insert({
     producto_id:  productoId, sector_id: currentPerfil.sector_id,
     tipo: tipoMovimiento, cantidad, stock_antes:stockAntes, stock_despues:stockDespues,
     usuario_id: currentUser.id,
+    registrado_en: registradoEn,
     observaciones: document.getElementById('mov-obs').value.trim()||null,
     proveedor:  tipoMovimiento==='entrada'?(document.getElementById('mov-proveedor').value.trim()||null):null,
     nro_remito: tipoMovimiento==='entrada'?(document.getElementById('mov-remito').value.trim()||null):null,
