@@ -677,6 +677,46 @@ tr:hover td{background:rgba(255,255,255,.02);}
 
 <div id="toast"></div>
 
+<!-- MODAL NUEVO PRODUCTO — FARMACIA (Apps Script / Sheets) -->
+<div class="modal-overlay" id="modal-producto-farmacia" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-title">Nuevo producto</div>
+    <div class="modal-sub">Se agrega directo a la planilla de Farmacia.</div>
+    <div class="form-field"><label>Nombre *</label><input type="text" id="npf-nombre" placeholder="Ej: Ibuprofeno 400mg"></div>
+    <div class="form-field">
+      <label>Unidad *</label>
+      <select id="npf-unidad">
+        <option value="comprimidos">comprimidos</option>
+        <option value="blisters">blisters</option>
+        <option value="cápsulas">cápsulas</option>
+        <option value="litros">litros</option>
+        <option value="unidades">unidades</option>
+        <option value="bolsas">bolsas</option>
+        <option value="kg">kg</option>
+        <option value="cajas">cajas</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-sm ghost" onclick="document.getElementById('modal-producto-farmacia').classList.remove('open')">Cancelar</button>
+      <button class="btn-sm primary" id="btn-guardar-producto-farmacia" onclick="guardarProductoFarmacia()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AJUSTAR STOCK — FARMACIA -->
+<div class="modal-overlay" id="modal-ajuste-stock" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-title">Ajustar total recibido</div>
+    <div class="modal-sub" id="ajs-producto-nombre">—</div>
+    <div class="form-field"><label>Nuevo total</label><input type="number" id="ajs-nuevo-total" min="0"></div>
+    <div class="form-field"><label>Motivo <span style="color:var(--muted);font-weight:400">(opcional)</span></label><input type="text" id="ajs-motivo" placeholder="Ej: error de carga, recuento físico..."></div>
+    <div class="modal-btns">
+      <button class="btn-sm ghost" onclick="document.getElementById('modal-ajuste-stock').classList.remove('open')">Cancelar</button>
+      <button class="btn-sm primary" id="btn-guardar-ajuste" onclick="guardarAjusteStock()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── SUPABASE ──
 const SUPABASE_URL = 'https://xnytmygxqvgsnksohhfz.supabase.co';
@@ -974,21 +1014,22 @@ async function cargarInventarioFarmacia() {
   document.getElementById('inv-ok').closest('.stat-card').style.display='none';
   document.getElementById('inv-bajo').closest('.stat-card').style.display='none';
   document.getElementById('inv-crit').closest('.stat-card').style.display='none';
-  if (thead) thead.innerHTML = '<th>Producto</th><th>Total recibido</th><th>Unidad</th>';
+  if (thead) thead.innerHTML = '<th>Producto</th><th>Total recibido</th><th>Unidad</th><th></th>';
   document.querySelector('#page-inventario .table-header .table-title').textContent = 'Productos';
   const btnNuevo = document.querySelector('#page-inventario .table-header button');
-  if (btnNuevo) btnNuevo.style.display = 'none';
+  if (btnNuevo) { btnNuevo.style.display = ''; btnNuevo.setAttribute('onclick','openModalProductoFarmacia()'); }
 
   let res;
   try { res = await asGet('stock', { sector: 'farmacia' }); }
-  catch (e) { tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Error al conectar con la planilla.</td></tr>`; return; }
+  catch (e) { tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Error al conectar con la planilla.</td></tr>`; return; }
   const data = res?.stock || [];
   document.getElementById('inv-total').textContent = data.length;
-  if (!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="3">No hay productos cargados todavía.</td></tr>`; return; }
+  if (!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="4">No hay productos cargados todavía.</td></tr>`; return; }
   tbody.innerHTML = data.map(p=>`<tr>
     <td><strong>${p.nombre}</strong></td>
     <td>${p.stock_actual}</td>
     <td>${p.unidad}</td>
+    <td><button class="btn-sm ghost" style="padding:5px 10px" onclick='openModalAjusteStock(${JSON.stringify(p)})'>Ajustar</button></td>
   </tr>`).join('');
 }
 
@@ -1193,6 +1234,67 @@ async function guardarRemito() {
     showToast('❌ Error de conexión con la planilla');
   }
   btn.disabled = false; btn.textContent = 'Guardar remito';
+}
+
+// ── NUEVO PRODUCTO (farmacia → Apps Script / Sheets) ──
+function openModalProductoFarmacia() {
+  document.getElementById('npf-nombre').value = '';
+  document.getElementById('modal-producto-farmacia').classList.add('open');
+}
+async function guardarProductoFarmacia() {
+  const nombre = document.getElementById('npf-nombre').value.trim();
+  if (!nombre) { showToast('⚠️ El nombre es obligatorio'); return; }
+  const btn = document.getElementById('btn-guardar-producto-farmacia');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const res = await asPost('crearProducto', {
+      nombre,
+      unidad: document.getElementById('npf-unidad').value,
+      sector: 'farmacia',
+      cargado_por: currentPerfil?.nombre || '',
+    });
+    if (res?.error === 'producto_ya_existe') { showToast('⚠️ Ya existe un producto con ese nombre'); }
+    else if (res?.error) { showToast('❌ Error: ' + res.error); }
+    else {
+      showToast('✅ Producto agregado');
+      document.getElementById('modal-producto-farmacia').classList.remove('open');
+      cargarInventarioFarmacia();
+    }
+  } catch (e) { showToast('❌ Error de conexión con la planilla'); }
+  btn.disabled = false; btn.textContent = 'Guardar';
+}
+
+// ── AJUSTAR STOCK (farmacia → Apps Script / Sheets) ──
+let ajsProductoActual = null;
+function openModalAjusteStock(p) {
+  ajsProductoActual = p;
+  document.getElementById('ajs-producto-nombre').textContent = `${p.nombre} — total actual: ${p.stock_actual} ${p.unidad}`;
+  document.getElementById('ajs-nuevo-total').value = p.stock_actual;
+  document.getElementById('ajs-motivo').value = '';
+  document.getElementById('modal-ajuste-stock').classList.add('open');
+}
+async function guardarAjusteStock() {
+  const nuevoTotal = parseFloat(document.getElementById('ajs-nuevo-total').value);
+  if (isNaN(nuevoTotal) || nuevoTotal < 0) { showToast('⚠️ Ingresá un total válido'); return; }
+  const btn = document.getElementById('btn-guardar-ajuste');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const res = await asPost('ajustarStock', {
+      producto_id: ajsProductoActual.id,
+      producto_nombre: ajsProductoActual.nombre,
+      unidad: ajsProductoActual.unidad,
+      nuevo_total: nuevoTotal,
+      observaciones: document.getElementById('ajs-motivo').value.trim() || null,
+      cargado_por: currentPerfil?.nombre || '',
+    });
+    if (res?.error) { showToast('❌ Error: ' + res.error); }
+    else {
+      showToast(res.ajustado ? '✅ Total actualizado' : 'ℹ️ ' + res.mensaje);
+      document.getElementById('modal-ajuste-stock').classList.remove('open');
+      cargarInventarioFarmacia();
+    }
+  } catch (e) { showToast('❌ Error de conexión con la planilla'); }
+  btn.disabled = false; btn.textContent = 'Guardar';
 }
 
 async function guardarMovimiento() {
