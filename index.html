@@ -269,6 +269,14 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .hist-card-cant { font-size:13px; font-weight:600; color:var(--text); }
 .hist-card-chevron { font-size:11px; color:var(--muted); }
 
+/* ── LÍNEAS REMITO ── */
+.rem-linea{display:grid;grid-template-columns:1fr 110px 32px;gap:8px;margin-bottom:8px;align-items:center;}
+.rem-linea select,.rem-linea input{margin:0;}
+.rem-linea-quitar{background:transparent;border:1px solid var(--border);color:var(--warn);border-radius:8px;
+  width:32px;height:32px;cursor:pointer;font-size:14px;line-height:1;flex-shrink:0;}
+.rem-linea-quitar:hover{background:rgba(255,77,109,.1);}
+@media(max-width:700px){ .rem-linea{grid-template-columns:1fr 90px 32px;} }
+
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
@@ -318,10 +326,11 @@ tr:hover td{background:rgba(255,255,255,.02);}
     <div class="sidebar" id="sidebar-encargado" style="display:none">
       <div class="sidebar-section">Stock</div>
       <button class="nav-item active" onclick="navTo('inventario',this)"><span class="icon">📦</span> Inventario</button>
-      <button class="nav-item" onclick="navTo('movimiento',this)"><span class="icon">↕️</span> Registrar movimiento</button>
+      <button class="nav-item galpon-only" onclick="navTo('movimiento',this)"><span class="icon">↕️</span> Registrar movimiento</button>
+      <button class="nav-item farmacia-only" onclick="navTo('remito',this)"><span class="icon">🧾</span> Cargar remito</button>
       <div class="sidebar-section">Historial</div>
       <button class="nav-item" onclick="navTo('historial',this)"><span class="icon">📋</span> Movimientos</button>
-      <button class="nav-item" onclick="navTo('alertas',this)"><span class="icon">⚠️</span> Alertas de stock</button>
+      <button class="nav-item galpon-only" onclick="navTo('alertas',this)"><span class="icon">⚠️</span> Alertas de stock</button>
       <div class="sidebar-section" id="nav-sec-reportes" style="display:none"></div>
     </div>
     <!-- Sidebar intendente -->
@@ -456,6 +465,36 @@ tr:hover td{background:rgba(255,255,255,.02);}
           <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;">
             <button class="btn-sm primary" id="btn-guardar-mov" style="padding:11px 24px;font-size:13px" onclick="guardarMovimiento()">Confirmar registro</button>
             <button class="btn-sm ghost" style="padding:11px 18px;font-size:13px" onclick="limpiarFormMovimiento()">Limpiar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- REMITO (farmacia — carga masiva de entradas) -->
+      <div class="page" id="page-remito">
+        <div class="page-title">Cargar remito</div>
+        <div class="page-desc">Ingreso de stock por pedido a Secretaría General. Agregá todas las líneas del remito y guardalas juntas.</div>
+        <div class="form-card">
+          <div class="form-row">
+            <div class="form-field"><label>Proveedor / Origen</label><input type="text" id="rem-proveedor" placeholder="Ej: Secretaría General de Gobierno"></div>
+            <div class="form-field"><label>Nro. de remito/factura <span style="color:var(--muted);font-weight:400">(opcional)</span></label><input type="text" id="rem-remito" placeholder="R-00123"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-field" style="max-width:220px"><label>Fecha <span style="color:var(--muted);font-weight:400">(por defecto hoy)</span></label><input type="date" id="rem-fecha"></div>
+          </div>
+
+          <div class="form-field">
+            <label>Líneas del remito</label>
+            <div id="rem-lineas"></div>
+            <button class="btn-sm ghost" style="margin-top:8px" onclick="agregarLineaRemito()">+ Agregar línea</button>
+          </div>
+
+          <div class="form-field">
+            <label>Observaciones <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+            <textarea id="rem-obs" rows="2" placeholder="Cualquier detalle adicional..."></textarea>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;">
+            <button class="btn-sm primary" id="btn-guardar-remito" style="padding:11px 24px;font-size:13px" onclick="guardarRemito()">Guardar remito</button>
+            <button class="btn-sm ghost" style="padding:11px 18px;font-size:13px" onclick="limpiarFormRemito()">Limpiar</button>
           </div>
         </div>
       </div>
@@ -644,6 +683,47 @@ const SUPABASE_URL = 'https://xnytmygxqvgsnksohhfz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhueXRteWd4cXZnc25rc29oaGZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1MDc5NDEsImV4cCI6MjA5MTA4Mzk0MX0.jrXBVbsxu2_mvETcPYuss0EJwTQKHds1Um8F7bcxzlg';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ── APPS SCRIPT (Farmacia — entradas desde Secretaría General) ──
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNgivI-mQPWWvUVyV0JRueD-puwvJgejH00Dp0X1LJFuGs7BetnKp24g6T7oy-4Hs5/exec';
+const APPS_SCRIPT_KEY  = 'CAMBIAR_ESTO_por_una_clave_propia'; // debe coincidir con API_KEY en Code.gs
+
+async function asGet(action, params = {}) {
+  const url = new URL(APPS_SCRIPT_URL);
+  url.searchParams.set('action', action);
+  url.searchParams.set('key', APPS_SCRIPT_KEY);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString());
+  return res.json();
+}
+async function asPost(action, body = {}) {
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
+    body: JSON.stringify({ action, key: APPS_SCRIPT_KEY, ...body }),
+  });
+  return res.json();
+}
+// Normaliza un movimiento de Apps Script al mismo "shape" que usan las funciones
+// de historial/detalle ya existentes (productos.nombre, usuarios.nombre, etc.)
+function normalizarMovApps(m) {
+  return {
+    id: 900000 + Number(m.id), // namespaced para no colisionar con ids numéricos de Supabase
+    registrado_en: m.registrado_en || m.fecha,
+    productos: { nombre: m.producto_nombre, unidad: m.unidad },
+    cantidad: m.cantidad,
+    tipo: 'entrada',
+    usuarios: { nombre: m.cargado_por },
+    proveedor: m.proveedor || null,
+    nro_remito: m.nro_remito || null,
+    observaciones: m.observaciones || null,
+    es_devolucion: false,
+    stock_antes: null, stock_despues: null,
+    entregas_farmacia: null, salidas_galpon: null,
+    remito_id: m.remito_id,
+    _origen: 'farmacia-sheet',
+  };
+}
+
 let currentUser    = null;
 let currentPerfil  = null;
 let tipoMovimiento = 'entrada';
@@ -799,6 +879,9 @@ function iniciarApp() {
     document.getElementById('topbar-sector').className   = 'topbar-sector ' + slug;
     document.getElementById('sidebar-encargado').style.display = 'flex';
     if (slug === 'galpon') document.getElementById('np-venc-wrap').style.display = 'none';
+    // Mostrar solo los nav-items del sector correspondiente
+    document.querySelectorAll('#sidebar-encargado .farmacia-only').forEach(el => el.style.display = slug==='farmacia' ? '' : 'none');
+    document.querySelectorAll('#sidebar-encargado .galpon-only').forEach(el => el.style.display = slug==='galpon' ? '' : 'none');
     navTo('inventario', document.querySelector('#sidebar-encargado .nav-item'));
   }
 }
@@ -813,6 +896,7 @@ function navTo(pageId, btn) {
   const loaders = {
     'inventario':      cargarInventario,
     'movimiento':      cargarProductosSelect,
+    'remito':          cargarRemitoInicial,
     'historial':       cargarHistorial,
     'alertas':         cargarAlertas,
     'admin-dashboard': cargarAdminDashboard,
@@ -854,7 +938,14 @@ function formatFecha(ts) {
 
 // ── INVENTARIO ──
 async function cargarInventario() {
+  if (currentPerfil?.sectores?.slug === 'farmacia') return cargarInventarioFarmacia();
   const tbody = document.getElementById('inv-tbody');
+  const thead = document.querySelector('#page-inventario thead tr');
+  if (thead) thead.innerHTML = '<th>Producto</th><th>Stock</th><th>Unidad</th><th>Estado</th>';
+  document.querySelector('#page-inventario .page-desc').textContent = 'Stock actual de tu sector.';
+  document.querySelectorAll('#page-inventario .stat-card').forEach(el => el.style.display = '');
+  const btnNuevo = document.querySelector('#page-inventario .table-header button');
+  if (btnNuevo) btnNuevo.style.display = '';
   tbody.innerHTML = `<tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
   const { data } = await db.from('productos').select('*')
     .eq('sector_id', currentPerfil.sector_id).eq('activo',true).order('nombre');
@@ -872,6 +963,35 @@ async function cargarInventario() {
   </tr>`).join('');
 }
 
+// Farmacia: el "stock" es la suma histórica de entradas por pedido a Secretaría General.
+// No hay estado (OK/Bajo/Crítico) porque no hay stock mínimo ni salidas en este flujo.
+async function cargarInventarioFarmacia() {
+  const tbody = document.getElementById('inv-tbody');
+  const thead = document.querySelector('#page-inventario thead tr');
+  tbody.innerHTML = `<tr><td colspan="4" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
+  document.querySelector('#page-inventario .page-desc').textContent = 'Total histórico recibido por producto (pedidos a Secretaría General).';
+  document.getElementById('inv-total').closest('.stat-card').style.display='';
+  document.getElementById('inv-ok').closest('.stat-card').style.display='none';
+  document.getElementById('inv-bajo').closest('.stat-card').style.display='none';
+  document.getElementById('inv-crit').closest('.stat-card').style.display='none';
+  if (thead) thead.innerHTML = '<th>Producto</th><th>Total recibido</th><th>Unidad</th>';
+  document.querySelector('#page-inventario .table-header .table-title').textContent = 'Productos';
+  const btnNuevo = document.querySelector('#page-inventario .table-header button');
+  if (btnNuevo) btnNuevo.style.display = 'none';
+
+  let res;
+  try { res = await asGet('stock', { sector: 'farmacia' }); }
+  catch (e) { tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Error al conectar con la planilla.</td></tr>`; return; }
+  const data = res?.stock || [];
+  document.getElementById('inv-total').textContent = data.length;
+  if (!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="3">No hay productos cargados todavía.</td></tr>`; return; }
+  tbody.innerHTML = data.map(p=>`<tr>
+    <td><strong>${p.nombre}</strong></td>
+    <td>${p.stock_actual}</td>
+    <td>${p.unidad}</td>
+  </tr>`).join('');
+}
+
 async function cargarInventarioSector(sectorId, tbodyId) {
   const esFarm  = tbodyId === 'adm-farm-tbody';
   const tableId = esFarm ? 'adm-farm-table-wrap' : 'adm-galp-table-wrap';
@@ -880,6 +1000,32 @@ async function cargarInventarioSector(sectorId, tbodyId) {
   const cards   = document.getElementById(cardsId);
   tbody.innerHTML=`<tr><td colspan="4" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
   if (cards) cards.innerHTML='';
+
+  if (esFarm) {
+    // Farmacia vive ahora en Google Sheets — "stock" acá es el total histórico recibido, sin estado.
+    let res;
+    try { res = await asGet('stock', { sector: 'farmacia' }); }
+    catch (e) { tbody.innerHTML=`<tr class="empty-row"><td colspan="4">Error al conectar con la planilla.</td></tr>`; return; }
+    const data = res?.stock || [];
+    if (!data.length) { tbody.innerHTML=`<tr class="empty-row"><td colspan="4">Sin datos aún.</td></tr>`; _renderInvSectorLayout(tableId,cardsId); return; }
+    tbody.innerHTML = data.map(p=>`<tr>
+      <td><strong>${p.nombre}</strong></td>
+      <td>${p.stock_actual}</td><td>${p.unidad}</td>
+      <td>—</td>
+    </tr>`).join('');
+    if (cards) {
+      cards.innerHTML = data.map(p=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border);">
+        <div>
+          <div style="font-size:14px;font-weight:600">${p.nombre}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">${p.unidad}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:18px;font-weight:700;font-family:'Syne',sans-serif">${p.stock_actual}</div>
+        </div>
+      </div>`).join('');
+    }
+    _renderInvSectorLayout(tableId,cardsId); return;
+  }
 
   const { data } = await db.from('productos').select('*').eq('sector_id',sectorId).eq('activo',true).order('nombre');
   if (!data||!data.length) {
@@ -972,6 +1118,83 @@ function limpiarFormMovimiento() {
   calcularTotal();
 }
 
+// ── REMITO (farmacia) ──
+let remProductos = []; // catálogo cacheado para los <select> de línea
+let remLineaSeq = 0;
+
+async function cargarRemitoInicial() {
+  const fechaEl = document.getElementById('rem-fecha');
+  if (fechaEl && !fechaEl.value) fechaEl.value = new Date().toISOString().slice(0,10);
+  const cont = document.getElementById('rem-lineas');
+  cont.innerHTML = `<div class="loading"><span class="spinner"></span>Cargando productos...</div>`;
+  try {
+    const res = await asGet('productos', { sector: 'farmacia' });
+    remProductos = res?.productos || [];
+  } catch (e) { remProductos = []; }
+  cont.innerHTML = '';
+  if (!cont.children.length) agregarLineaRemito();
+}
+
+function opcionesProductoHTML(selectedId) {
+  return '<option value="">Seleccioná...</option>' +
+    remProductos.map(p => `<option value="${p.id}" ${String(p.id)===String(selectedId)?'selected':''}>${p.nombre}</option>`).join('');
+}
+
+function agregarLineaRemito() {
+  const id = 'rl-' + (++remLineaSeq);
+  const cont = document.getElementById('rem-lineas');
+  const div = document.createElement('div');
+  div.className = 'rem-linea';
+  div.id = id;
+  div.innerHTML = `
+    <select class="rl-producto">${opcionesProductoHTML()}</select>
+    <input type="number" class="rl-cantidad" placeholder="Cant." min="1">
+    <button type="button" class="rem-linea-quitar" onclick="document.getElementById('${id}').remove()">✕</button>`;
+  cont.appendChild(div);
+}
+
+function limpiarFormRemito() {
+  document.getElementById('rem-proveedor').value = '';
+  document.getElementById('rem-remito').value = '';
+  document.getElementById('rem-obs').value = '';
+  document.getElementById('rem-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('rem-lineas').innerHTML = '';
+  remLineaSeq = 0;
+  agregarLineaRemito();
+}
+
+async function guardarRemito() {
+  const proveedor = document.getElementById('rem-proveedor').value.trim();
+  const filas = Array.from(document.querySelectorAll('#rem-lineas .rem-linea'));
+  const lineas = filas.map(f => {
+    const sel = f.querySelector('.rl-producto');
+    const cant = parseFloat(f.querySelector('.rl-cantidad').value);
+    const prod = remProductos.find(p => String(p.id) === String(sel.value));
+    return prod && cant > 0 ? { producto_id: prod.id, producto_nombre: prod.nombre, unidad: prod.unidad, cantidad: cant } : null;
+  }).filter(Boolean);
+
+  if (!proveedor) { showToast('⚠️ Completá el proveedor / origen'); return; }
+  if (!lineas.length) { showToast('⚠️ Agregá al menos un producto con cantidad'); return; }
+
+  const btn = document.getElementById('btn-guardar-remito');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const res = await asPost('guardarRemito', {
+      proveedor,
+      nro_remito: document.getElementById('rem-remito').value.trim() || null,
+      fecha: document.getElementById('rem-fecha').value || null,
+      observaciones: document.getElementById('rem-obs').value.trim() || null,
+      cargado_por: currentPerfil?.nombre || '',
+      lineas,
+    });
+    if (res?.error) { showToast('❌ Error: ' + res.error); }
+    else { showToast(`✅ Remito guardado (${res.lineas_guardadas} líneas)`); limpiarFormRemito(); }
+  } catch (e) {
+    showToast('❌ Error de conexión con la planilla');
+  }
+  btn.disabled = false; btn.textContent = 'Guardar remito';
+}
+
 async function guardarMovimiento() {
   const productoId = parseInt(document.getElementById('mov-producto').value);
   const cantidad   = parseFloat(document.getElementById('mov-cantidad').value);
@@ -1058,6 +1281,7 @@ let histOffset = 0;
 const HIST_PAGE = 50;
 
 async function cargarHistorial(append = false) {
+  if (currentPerfil?.sectores?.slug === 'farmacia') return cargarHistorialFarmacia();
   const tbody = document.getElementById('hist-tbody');
   const cards = document.getElementById('hist-cards');
   if (!append) {
@@ -1145,6 +1369,30 @@ async function cargarHistorial(append = false) {
 
 function cargarMasHistorial() { cargarHistorial(true); }
 
+// Farmacia: historial desde la Sheet vía Apps Script (viene completo, sin paginado por ahora)
+async function cargarHistorialFarmacia() {
+  const tbody = document.getElementById('hist-tbody');
+  const cards = document.getElementById('hist-cards');
+  tbody.innerHTML = `<tr><td colspan="5" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
+  cards.innerHTML = '';
+  document.getElementById('hist-mas-wrap').style.display = 'none';
+
+  let res;
+  try { res = await asGet('historial', { sector: 'farmacia' }); }
+  catch (e) { tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Error al conectar con la planilla.</td></tr>`; return; }
+  const data = (res?.movimientos || []).map(normalizarMovApps);
+
+  window._movData = {}; window._movArr = data;
+  data.forEach(m => window._movData[m.id] = m);
+
+  if (!data.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Sin movimientos todavía.</td></tr>`;
+    cards.innerHTML = `<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin movimientos todavía.</div>`;
+    renderHistorialLayout(); return;
+  }
+  _renderHistorial(data);
+}
+
 function renderHistorialLayout() {
   const mobile = esMobile();
   document.getElementById('hist-table-wrap').style.display = mobile ? 'none' : '';
@@ -1173,20 +1421,32 @@ async function cargarAlertas() {
 
 // ── ADMIN DASHBOARD ──
 async function cargarAdminDashboard() {
-  const [{ data:farm },{ data:galp }] = await Promise.all([
-    db.from('productos').select('*').eq('sector_id',1).eq('activo',true),
+  const [resFarm, { data:galp }] = await Promise.all([
+    asGet('stock', { sector: 'farmacia' }).catch(()=>({stock:[]})),
     db.from('productos').select('*').eq('sector_id',2).eq('activo',true),
   ]);
-  document.getElementById('adm-farm-total').textContent   = (farm||[]).length;
-  document.getElementById('adm-farm-alertas').textContent = (farm||[]).filter(p=>['critico','bajo','sin_stock'].includes(calcEstado(p))).length;
+  const farm = resFarm?.stock || [];
+  document.getElementById('adm-farm-total').textContent   = farm.length;
+  document.getElementById('adm-farm-alertas').textContent = '—'; // ya no aplica: sin stock mínimo en este flujo
   document.getElementById('adm-galp-total').textContent   = (galp||[]).length;
   document.getElementById('adm-galp-alertas').textContent = (galp||[]).filter(p=>['critico','bajo','sin_stock'].includes(calcEstado(p))).length;
 
   const tbody = document.getElementById('adm-mov-tbody');
   const cards = document.getElementById('adm-mov-cards');
-  const { data:movs } = await db.from('movimientos')
-    .select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), entregas_farmacia(area_solicitante,receptor_nombre,beneficiario_nombre), salidas_galpon(retirado_por)')
-    .order('registrado_en',{ascending:false}).limit(15);
+
+  const [resHistFarm, { data:movsGalp }] = await Promise.all([
+    asGet('historial', { sector: 'farmacia' }).catch(()=>({movimientos:[]})),
+    db.from('movimientos').select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), salidas_galpon(retirado_por)')
+      .eq('sector_id',2).order('registrado_en',{ascending:false}).limit(15),
+  ]);
+  const movsFarm = (resHistFarm?.movimientos||[]).map(m => {
+    const n = normalizarMovApps(m);
+    n.sectores = { nombre: 'Farmacia Municipal', slug: 'farmacia' };
+    return n;
+  });
+  const movs = movsFarm.concat(movsGalp||[])
+    .sort((a,b) => new Date(b.registrado_en) - new Date(a.registrado_en))
+    .slice(0,15);
 
   if (!movs||!movs.length) {
     tbody.innerHTML=`<tr class="empty-row"><td colspan="6">Sin movimientos.</td></tr>`;
@@ -1242,84 +1502,38 @@ function renderAdmMovLayout() {
 }
 
 // ── HISTORIAL GLOBAL ──
-let admHistOffset = 0;
-const ADM_HIST_PAGE = 50;
-
-async function cargarHistorialGlobal(append = false) {
+async function cargarHistorialGlobal() {
   const tbody = document.getElementById('adm-hist-tbody');
   const cards = document.getElementById('adm-hist-cards');
-  if (!append) {
-    admHistOffset = 0;
-    tbody.innerHTML=`<tr><td colspan="7" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
-    cards.innerHTML='';
-  } else {
-    document.getElementById('btn-adm-hist-mas').disabled = true;
-    document.getElementById('btn-adm-hist-mas').textContent = 'Cargando...';
-  }
-  const { data } = await db.from('movimientos')
-    .select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), entregas_farmacia(area_solicitante,receptor_nombre,receptor_dni,beneficiario_nombre,monto_unitario,monto_total), salidas_galpon(retirado_por,destino_tarea)')
-    .order('registrado_en',{ascending:false})
-    .range(admHistOffset, admHistOffset + ADM_HIST_PAGE - 1);
+  tbody.innerHTML=`<tr><td colspan="7" class="loading"><span class="spinner"></span>Cargando...</td></tr>`;
+  cards.innerHTML='';
+  document.getElementById('adm-hist-mas-wrap').style.display = 'none'; // ambas fuentes traen todo de una
+
+  const [resFarm, { data:movsGalp }] = await Promise.all([
+    asGet('historial', { sector: 'farmacia' }).catch(()=>({movimientos:[]})),
+    db.from('movimientos').select('*, productos(nombre,unidad), sectores(nombre,slug), usuarios(nombre), salidas_galpon(retirado_por,destino_tarea)')
+      .eq('sector_id',2).order('registrado_en',{ascending:false}),
+  ]);
+  const movsFarm = (resFarm?.movimientos||[]).map(m => {
+    const n = normalizarMovApps(m);
+    n.sectores = { nombre: 'Farmacia Municipal', slug: 'farmacia' };
+    return n;
+  });
+  const data = movsFarm.concat(movsGalp||[])
+    .sort((a,b) => new Date(b.registrado_en) - new Date(a.registrado_en));
+
   if (!data||!data.length) {
-    if (!append) {
-      tbody.innerHTML=`<tr class="empty-row"><td colspan="7">Sin movimientos.</td></tr>`;
-      cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin movimientos.</div>`;
-    }
-    document.getElementById('adm-hist-mas-wrap').style.display = 'none';
+    tbody.innerHTML=`<tr class="empty-row"><td colspan="7">Sin movimientos.</td></tr>`;
+    cards.innerHTML=`<div style="text-align:center;color:var(--muted);padding:28px;font-size:13px">Sin movimientos.</div>`;
     renderAdmHistorialLayout(); return;
   }
-  if (!window._movDataGlobal || !append) { window._movDataGlobal = {}; window._movArrGlobal = []; }
+  window._movDataGlobal = {};
+  window._movArrGlobal = data;
   data.forEach(m => window._movDataGlobal[m.id] = m);
-  window._movArrGlobal = (window._movArrGlobal||[]).concat(data);
-  admHistOffset += data.length;
-  const newRows = data.map(m=>{
-    let det='—';
-    const ef = m.entregas_farmacia;
-    if (ef) {
-      const partes=[];
-      if (ef.area_solicitante) partes.push(ef.area_solicitante);
-      if (ef.receptor_nombre)  partes.push(`→ ${ef.receptor_nombre}`);
-      if (ef.beneficiario_nombre && ef.beneficiario_nombre !== ef.receptor_nombre) partes.push(`(${ef.beneficiario_nombre})`);
-      if (ef.monto_total) partes.push(`$ ${parseFloat(ef.monto_total).toLocaleString('es-AR',{minimumFractionDigits:2})}`);
-      det=partes.join(' · ')||'—';
-    }
-    if (m.salidas_galpon) det=`${m.salidas_galpon.retirado_por} · ${m.salidas_galpon.destino_tarea}`;
-    if (m.proveedor)      det=m.proveedor;
-    const slug=m.sectores?.slug==='farmacia';
-    return `<tr class="clickable-row" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
-      <td style="white-space:nowrap">${formatFecha(m.registrado_en)}</td>
-      <td><span class="badge ${slug?'farmacia-tag':'galpon-tag'}">${slug?'Farmacia':'Galpón'}</span></td>
-      <td><span class="badge ${m.tipo}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
-      <td>${m.productos?.nombre||'—'}</td><td>${m.cantidad}</td>
-      <td style="color:var(--muted);font-size:12px">${det}</td>
-      <td style="color:var(--muted);font-size:12px">${m.usuarios?.nombre||'—'}</td></tr>`;
-  }).join('');
-  const newCards = data.map(m=>{
-    const esFarmacia=m.sectores?.slug==='farmacia'; const esDev=m.es_devolucion;
-    return `<div class="hist-card" onclick="abrirDetalle(window._movDataGlobal[${m.id}])">
-      <div class="hist-card-left">
-        <div class="hist-card-fecha">${formatFecha(m.registrado_en)} &nbsp;·&nbsp;
-          <span class="badge ${esFarmacia?'farmacia-tag':'galpon-tag'}" style="font-size:10px;padding:2px 7px">${esFarmacia?'Farmacia':'Galpón'}</span>
-        </div>
-        <div class="hist-card-producto">${m.productos?.nombre||'—'}</div>
-        <div class="hist-card-det">${detalleCortoPara(m)}</div>
-      </div>
-      <div class="hist-card-right">
-        <span class="badge ${esDev?'entrada':m.tipo}">${esDev?'Devolución':m.tipo==='entrada'?'Entrada':'Salida'}</span>
-        <span class="hist-card-cant">${m.cantidad} ${m.productos?.unidad||''}</span>
-        <span class="hist-card-chevron">ver más ›</span>
-      </div></div>`;
-  }).join('');
-  if (append) { tbody.innerHTML += newRows; cards.innerHTML += newCards; }
-  else        { tbody.innerHTML  = newRows; cards.innerHTML  = newCards; }
-  const masWrap = document.getElementById('adm-hist-mas-wrap');
-  const btnMas  = document.getElementById('btn-adm-hist-mas');
-  masWrap.style.display = data.length === ADM_HIST_PAGE ? '' : 'none';
-  btnMas.disabled = false; btnMas.textContent = 'Cargar más registros';
-  renderAdmHistorialLayout();
+  _renderAdmHist(data);
 }
 
-function cargarMasHistorialGlobal() { cargarHistorialGlobal(true); }
+function cargarMasHistorialGlobal() { /* ya no aplica: ambas fuentes traen todo de una */ }
 
 function renderAdmHistorialLayout() {
   const mobile = esMobile();
@@ -1383,8 +1597,9 @@ function abrirDetalle(m) {
       <div class="detalle-val">${m.cantidad} ${m.productos?.unidad||''}</div>
     </div>`;
 
-  // Stock antes/después
-  filas += `
+  // Stock antes/después (no aplica a entradas de farmacia vía planilla, es solo historial)
+  if (m.stock_antes !== null && m.stock_antes !== undefined) {
+    filas += `
     <div class="detalle-item">
       <div class="detalle-label">Stock antes</div>
       <div class="detalle-val">${m.stock_antes} ${m.productos?.unidad||''}</div>
@@ -1393,6 +1608,7 @@ function abrirDetalle(m) {
       <div class="detalle-label">Stock después</div>
       <div class="detalle-val">${m.stock_despues} ${m.productos?.unidad||''}</div>
     </div>`;
+  }
 
   // Sector (solo para intendente)
   if (m.sectores) {
@@ -1503,7 +1719,11 @@ function matchBusqueda(m, q) {
   const area         = (ef?.area_solicitante    || '').toLowerCase();
   const retirado     = (m.salidas_galpon?.retirado_por || '').toLowerCase();
   const producto     = (m.productos?.nombre     || '').toLowerCase();
-  return receptor.includes(q)||beneficiario.includes(q)||area.includes(q)||retirado.includes(q)||producto.includes(q);
+  const proveedor    = (m.proveedor             || '').toLowerCase();
+  const remito       = (m.nro_remito            || '').toLowerCase();
+  const cargadoPor   = (m.usuarios?.nombre      || '').toLowerCase();
+  return receptor.includes(q)||beneficiario.includes(q)||area.includes(q)||retirado.includes(q)||
+         producto.includes(q)||proveedor.includes(q)||remito.includes(q)||cargadoPor.includes(q);
 }
 
 function filtrarHistorial() {
