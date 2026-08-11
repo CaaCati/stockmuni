@@ -7,21 +7,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  /* paleta pastel */
-  --bg:#F3EEFB;                 /* lavanda muy claro, fondo general */
-  --surface:#FBF8FF;            /* casi blanco con tinte lavanda, superficie de tarjetas */
-  --surface2:#EFE6FB;           /* lavanda un poco más marcado, hover/inputs */
-  --lilac:#B9A6F0;              /* acento principal */
-  --mint:#9FE7C8;                /* acento secundario / positivo */
-  --peach:#FFC7A6;               /* acento terciario / advertencia suave */
-  --sky:#A7D8F0;                 /* acento cuaternario */
+  /* paleta pastel azul */
+  --bg:#EAF2FC;                 /* celeste muy claro, fondo general */
+  --surface:#F8FBFF;            /* casi blanco con tinte celeste, superficie de tarjetas */
+  --surface2:#DCEAFA;           /* celeste un poco más marcado, hover/inputs */
+  --lilac:#5B93D6;              /* acento principal (azul) */
+  --mint:#7FD1D1;                /* acento secundario / positivo (turquesa) */
+  --peach:#A9C9F5;               /* acento terciario / advertencia suave (celeste) */
+  --sky:#BFD9F7;                 /* acento cuaternario */
   --coral:#FF9EA8;               /* error / eliminar, en tono pastel */
-  --text:#4A4066;                /* violeta oscuro, texto principal */
-  --muted:#9089AC;               /* violeta grisáceo, texto secundario */
+  --text:#26456E;                /* azul marino, texto principal */
+  --muted:#7E93B3;               /* azul grisáceo, texto secundario */
   --sidebar-w:210px;
-  --clay-out: 7px 7px 14px rgba(150,130,190,.28), -7px -7px 14px rgba(255,255,255,.85);
-  --clay-out-sm: 4px 4px 9px rgba(150,130,190,.25), -4px -4px 9px rgba(255,255,255,.8);
-  --clay-in: inset 3px 3px 7px rgba(150,130,190,.30), inset -3px -3px 7px rgba(255,255,255,.7);
+  --clay-out: 7px 7px 14px rgba(130,160,200,.30), -7px -7px 14px rgba(255,255,255,.9);
+  --clay-out-sm: 4px 4px 9px rgba(130,160,200,.27), -4px -4px 9px rgba(255,255,255,.85);
+  --clay-in: inset 3px 3px 7px rgba(130,160,200,.32), inset -3px -3px 7px rgba(255,255,255,.75);
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
@@ -87,7 +87,7 @@ tr:hover td{background:rgba(185,166,240,.08);}
 .btn-x{background:var(--surface);border:none;color:var(--coral);font-size:16px;cursor:pointer;border-radius:10px;width:32px;height:32px;box-shadow:var(--clay-out-sm);}
 .btn-add-linea{width:100%;padding:11px;border:none;border-radius:14px;background:var(--surface2);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;box-shadow:var(--clay-in);}
 .btn-add-linea:hover{color:var(--lilac);}
-.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(90,75,130,.35);display:none;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(60,95,150,.35);display:none;align-items:center;justify-content:center;padding:16px;}
 .modal-overlay.open{display:flex;}
 .modal{background:var(--surface);border-radius:26px;padding:28px;width:min(440px,100%);max-height:90vh;overflow-y:auto;box-shadow:var(--clay-out);}
 .modal-title{font-family:'Fredoka',sans-serif;font-weight:600;font-size:18px;margin-bottom:18px;}
@@ -96,7 +96,7 @@ tr:hover td{background:rgba(185,166,240,.08);}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--surface2);border-top-color:var(--lilac);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle;}
 @keyframes spin{to{transform:rotate(360deg)}}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border-radius:16px;padding:12px 22px;font-size:13px;font-weight:700;z-index:500;transition:transform .3s,opacity .3s;opacity:0;box-shadow:var(--clay-out);}
-.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(90,75,130,.35);z-index:90;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(60,95,150,.35);z-index:90;}
 .sidebar-overlay.open{display:block;}
 .icon-btn{background:var(--surface);border:none;color:var(--muted);border-radius:10px;padding:6px 11px;cursor:pointer;font-size:12px;font-weight:700;box-shadow:var(--clay-out-sm);}
 .icon-btn:hover{color:var(--lilac);}
