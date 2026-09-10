@@ -272,7 +272,7 @@ const CONFIG = {
     <div class="form-field"><label>Stock actual</label><input type="number" id="ep-stock" min="0" step="1"></div>
     <div class="modal-btns">
       <button class="btn-sm ghost" onclick="closeModal('modal-editar')">Cancelar</button>
-      <button class="btn-sm primary" onclick="guardarEdicionProducto()">Guardar cambios</button>
+      <button class="btn-sm primary" id="btn-guardar-edicion-producto" onclick="guardarEdicionProducto()">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -372,16 +372,21 @@ function renderProductos(lista) {
     <td>${p.nombre}</td><td>${p.stock_actual}</td><td>${p.unidad}</td>
     <td>
       <button class="icon-btn" onclick='abrirEditarProducto(${JSON.stringify(p)})'>Editar</button>
-      <button class="icon-btn" style="color:var(--coral)" onclick='eliminarProducto(${JSON.stringify(p)})'>Eliminar</button>
+      <button class="icon-btn" style="color:var(--coral)" onclick='eliminarProducto(${JSON.stringify(p)}, this)'>Eliminar</button>
     </td>
   </tr>`).join('');
 }
-async function eliminarProducto(p) {
+async function eliminarProducto(p, btn) {
   if (!confirm(`¿Eliminar "${p.nombre}"? No vas a poder cargarlo en nuevos ingresos, pero su historial de movimientos se conserva.`)) return;
-  const r = await apiPost('actualizarProducto', { id: p.id, activo: false });
-  if (r.error) return showToast('Error: ' + r.error);
-  showToast('Producto eliminado');
-  cargarProductos();
+  if (btn) btn.disabled = true;
+  try {
+    const r = await apiPost('actualizarProducto', { id: p.id, activo: false });
+    if (r.error) return showToast('Error: ' + r.error);
+    showToast('Producto eliminado');
+    cargarProductos();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 function filtrarProductos() {
   const q = document.getElementById('prod-buscar').value.trim().toLowerCase();
@@ -421,24 +426,30 @@ async function guardarEdicionProducto() {
   const unidad = document.getElementById('ep-unidad').value.trim();
   const nuevoStock = document.getElementById('ep-stock').value;
 
-  const r = await apiPost('actualizarProducto', { id, nombre, unidad });
-  if (r.error) return showToast('Error: ' + r.error);
+  const btn = document.getElementById('btn-guardar-edicion-producto');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const r = await apiPost('actualizarProducto', { id, nombre, unidad });
+    if (r.error) return showToast('Error: ' + r.error);
 
-  if (nuevoStock !== '' && !isNaN(Number(nuevoStock))) {
-    const quien = document.getElementById('quien-carga').value.trim();
-    const rs = await apiPost('ajustarStock', {
-      producto_id: id,
-      nuevo_total: Number(nuevoStock),
-      producto_nombre: nombre,
-      unidad,
-      cargado_por: quien
-    });
-    if (rs.error) return showToast('Error al ajustar stock: ' + rs.error);
+    if (nuevoStock !== '' && !isNaN(Number(nuevoStock))) {
+      const quien = document.getElementById('quien-carga').value.trim();
+      const rs = await apiPost('ajustarStock', {
+        producto_id: id,
+        nuevo_total: Number(nuevoStock),
+        producto_nombre: nombre,
+        unidad,
+        cargado_por: quien
+      });
+      if (rs.error) return showToast('Error al ajustar stock: ' + rs.error);
+    }
+
+    showToast('Producto actualizado');
+    closeModal('modal-editar');
+    cargarProductos();
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
   }
-
-  showToast('Producto actualizado');
-  closeModal('modal-editar');
-  cargarProductos();
 }
 
 function setTipoComprobante(t) {
