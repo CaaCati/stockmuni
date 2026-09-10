@@ -257,7 +257,7 @@ const CONFIG = {
     </div>
     <div class="modal-btns">
       <button class="btn-sm ghost" onclick="closeModal('modal-producto')">Cancelar</button>
-      <button class="btn-sm primary" onclick="guardarProductoNuevo()">Guardar</button>
+      <button class="btn-sm primary" id="btn-guardar-producto" onclick="guardarProductoNuevo()">Guardar</button>
     </div>
   </div>
 </div>
@@ -349,8 +349,18 @@ function renderProductos(lista) {
   if (!data.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Sin productos cargados.</td></tr>`; return; }
   tbody.innerHTML = data.map(p => `<tr>
     <td>${p.nombre}</td><td>${p.stock_actual}</td><td>${p.unidad}</td>
-    <td><button class="icon-btn" onclick='abrirEditarProducto(${JSON.stringify(p)})'>Editar</button></td>
+    <td>
+      <button class="icon-btn" onclick='abrirEditarProducto(${JSON.stringify(p)})'>Editar</button>
+      <button class="icon-btn" style="color:var(--coral)" onclick='eliminarProducto(${JSON.stringify(p)})'>Eliminar</button>
+    </td>
   </tr>`).join('');
+}
+async function eliminarProducto(p) {
+  if (!confirm(`¿Eliminar "${p.nombre}"? No vas a poder cargarlo en nuevos ingresos, pero su historial de movimientos se conserva.`)) return;
+  const r = await apiPost('actualizarProducto', { id: p.id, activo: false });
+  if (r.error) return showToast('Error: ' + r.error);
+  showToast('Producto eliminado');
+  cargarProductos();
 }
 function filtrarProductos() {
   const q = document.getElementById('prod-buscar').value.trim().toLowerCase();
@@ -363,12 +373,19 @@ async function guardarProductoNuevo() {
   const nombre = document.getElementById('np-nombre').value.trim();
   if (!nombre) return showToast('Poné un nombre de producto');
   const unidad = document.getElementById('np-unidad').value;
-  const r = await apiPost('crearProducto', { nombre, unidad, sector: CONFIG.SECTOR });
-  if (r.error) return showToast('Error: ' + r.error);
-  showToast('Producto agregado');
-  closeModal('modal-producto');
-  document.getElementById('np-nombre').value = '';
-  cargarProductos();
+
+  const btn = document.getElementById('btn-guardar-producto');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const r = await apiPost('crearProducto', { nombre, unidad, sector: CONFIG.SECTOR });
+    if (r.error) return showToast('Error: ' + r.error);
+    showToast('Producto agregado');
+    closeModal('modal-producto');
+    document.getElementById('np-nombre').value = '';
+    cargarProductos();
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
 }
 function abrirEditarProducto(p) {
   document.getElementById('ep-id').value = p.id;
