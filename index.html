@@ -171,10 +171,11 @@ const CONFIG = {
     <!-- PRODUCTOS -->
     <div class="page" id="page-productos">
       <div class="page-title">Productos</div>
-      <div class="page-desc">Stock acumulado por producto. Podés editar nombre/unidad de cada uno.</div>
+      <div class="page-desc">Stock acumulado por producto. Podés editar nombre/unidad y ajustar el stock manualmente.</div>
       <div class="table-card">
         <div class="table-header">
           <div class="table-title">Productos</div>
+          <input type="text" id="prod-buscar" placeholder="Buscar producto..." oninput="filtrarProductos()">
           <button class="btn-sm primary" onclick="openModalProducto()">+ Nuevo producto</button>
         </div>
         <div class="table-scroll">
@@ -268,6 +269,7 @@ const CONFIG = {
     <input type="hidden" id="ep-id">
     <div class="form-field"><label>Nombre</label><input type="text" id="ep-nombre"></div>
     <div class="form-field"><label>Unidad</label><input type="text" id="ep-unidad"></div>
+    <div class="form-field"><label>Stock actual</label><input type="number" id="ep-stock" min="0" step="1"></div>
     <div class="modal-btns">
       <button class="btn-sm ghost" onclick="closeModal('modal-editar')">Cancelar</button>
       <button class="btn-sm primary" onclick="guardarEdicionProducto()">Guardar cambios</button>
@@ -337,17 +339,23 @@ async function cargarDashboard() {
 async function cargarProductos() {
   const r = await apiGet('stock', { sector: CONFIG.SECTOR });
   if (!r.stock) return showToast('Error al cargar productos');
-  productosCache = r.stock;
+  productosCache = r.stock.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
   renderProductos();
   renderSelectsLineas();
 }
-function renderProductos() {
+function renderProductos(lista) {
+  const data = lista || productosCache;
   const tbody = document.getElementById('prod-tbody');
-  if (!productosCache.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Sin productos cargados.</td></tr>`; return; }
-  tbody.innerHTML = productosCache.map(p => `<tr>
+  if (!data.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Sin productos cargados.</td></tr>`; return; }
+  tbody.innerHTML = data.map(p => `<tr>
     <td>${p.nombre}</td><td>${p.stock_actual}</td><td>${p.unidad}</td>
     <td><button class="icon-btn" onclick='abrirEditarProducto(${JSON.stringify(p)})'>Editar</button></td>
   </tr>`).join('');
+}
+function filtrarProductos() {
+  const q = document.getElementById('prod-buscar').value.trim().toLowerCase();
+  if (!q) return renderProductos();
+  renderProductos(productosCache.filter(p => p.nombre.toLowerCase().includes(q)));
 }
 
 function openModalProducto(){document.getElementById('modal-producto').classList.add('open');}
@@ -366,14 +374,30 @@ function abrirEditarProducto(p) {
   document.getElementById('ep-id').value = p.id;
   document.getElementById('ep-nombre').value = p.nombre;
   document.getElementById('ep-unidad').value = p.unidad;
+  document.getElementById('ep-stock').value = p.stock_actual;
   document.getElementById('modal-editar').classList.add('open');
 }
 async function guardarEdicionProducto() {
   const id = document.getElementById('ep-id').value;
   const nombre = document.getElementById('ep-nombre').value.trim();
   const unidad = document.getElementById('ep-unidad').value.trim();
+  const nuevoStock = document.getElementById('ep-stock').value;
+
   const r = await apiPost('actualizarProducto', { id, nombre, unidad });
   if (r.error) return showToast('Error: ' + r.error);
+
+  if (nuevoStock !== '' && !isNaN(Number(nuevoStock))) {
+    const quien = document.getElementById('quien-carga').value.trim();
+    const rs = await apiPost('ajustarStock', {
+      producto_id: id,
+      nuevo_total: Number(nuevoStock),
+      producto_nombre: nombre,
+      unidad,
+      cargado_por: quien
+    });
+    if (rs.error) return showToast('Error al ajustar stock: ' + rs.error);
+  }
+
   showToast('Producto actualizado');
   closeModal('modal-editar');
   cargarProductos();
