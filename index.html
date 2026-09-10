@@ -277,6 +277,27 @@ const CONFIG = {
   </div>
 </div>
 
+<!-- MODAL EDITAR MOVIMIENTO -->
+<div class="modal-overlay" id="modal-editar-mov">
+  <div class="modal">
+    <div class="modal-title">Editar movimiento</div>
+    <input type="hidden" id="em-id">
+    <div class="form-field"><label>Producto</label><input type="text" id="em-producto" disabled></div>
+    <div class="form-row">
+      <div class="form-field"><label>Fecha</label><input type="date" id="em-fecha"></div>
+      <div class="form-field"><label>Cantidad</label><input type="number" id="em-cantidad" min="1"></div>
+    </div>
+    <div class="form-field"><label>Proveedor / origen</label><input type="text" id="em-proveedor"></div>
+    <div class="form-field"><label>N° comprobante</label><input type="text" id="em-nro-remito"></div>
+    <div class="form-field"><label>Observaciones</label><input type="text" id="em-obs"></div>
+    <div class="form-field"><label>Cargó</label><input type="text" id="em-cargado-por"></div>
+    <div class="modal-btns">
+      <button class="btn-sm ghost" onclick="closeModal('modal-editar-mov')">Cancelar</button>
+      <button class="btn-sm primary" id="btn-guardar-mov" onclick="guardarEdicionMovimiento()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- COMPROBANTE PARA IMPRIMIR -->
@@ -523,8 +544,57 @@ function renderHistorial(lista) {
     <td style="white-space:nowrap">${formatFecha(m.fecha || m.registrado_en)}</td>
     <td>${m.producto_nombre}</td><td>${m.cantidad}</td>
     <td>${m.proveedor || '—'}</td><td>${m.nro_remito || '—'}</td><td>${m.cargado_por || '—'}</td>
-    <td><button class="icon-btn" onclick='reimprimir(${JSON.stringify(m)})'>Imprimir</button></td>
+    <td>
+      <button class="icon-btn" onclick='abrirEditarMovimiento(${JSON.stringify(m)})'>Editar</button>
+      <button class="icon-btn" onclick='reimprimir(${JSON.stringify(m)})'>Imprimir</button>
+    </td>
   </tr>`).join('');
+}
+function fechaParaInput(f) {
+  if (!f) return '';
+  const d = new Date(f);
+  if (isNaN(d)) return '';
+  const yyyy = d.getFullYear(), mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+function abrirEditarMovimiento(m) {
+  document.getElementById('em-id').value = m.id;
+  document.getElementById('em-producto').value = m.producto_nombre;
+  document.getElementById('em-fecha').value = fechaParaInput(m.fecha || m.registrado_en);
+  document.getElementById('em-cantidad').value = m.cantidad;
+  document.getElementById('em-proveedor').value = m.proveedor || '';
+  document.getElementById('em-nro-remito').value = m.nro_remito || '';
+  document.getElementById('em-obs').value = m.observaciones || '';
+  document.getElementById('em-cargado-por').value = m.cargado_por || '';
+  document.getElementById('modal-editar-mov').classList.add('open');
+}
+async function guardarEdicionMovimiento() {
+  const id = document.getElementById('em-id').value;
+  const fecha = document.getElementById('em-fecha').value;
+  const cantidad = document.getElementById('em-cantidad').value;
+  if (!fecha) return showToast('Poné una fecha');
+  if (!cantidad || Number(cantidad) <= 0) return showToast('La cantidad tiene que ser mayor a 0');
+
+  const btn = document.getElementById('btn-guardar-mov');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    const r = await apiPost('actualizarMovimiento', {
+      id,
+      fecha,
+      cantidad: Number(cantidad),
+      proveedor: document.getElementById('em-proveedor').value.trim(),
+      nro_remito: document.getElementById('em-nro-remito').value.trim(),
+      observaciones: document.getElementById('em-obs').value.trim(),
+      cargado_por: document.getElementById('em-cargado-por').value.trim()
+    });
+    if (r.error) return showToast('Error: ' + r.error);
+    showToast('Movimiento actualizado');
+    closeModal('modal-editar-mov');
+    cargarHistorial();
+    cargarProductos();
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
+  }
 }
 function reimprimir(m) {
   imprimirComprobante({
